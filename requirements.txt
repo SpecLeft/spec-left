@@ -1,0 +1,5 @@
+# Runtime dependencies (pinned for reproducible installs)
+pytest==7.0.0
+pydantic==2.0.0
+click==8.0.0
+jinja2==3.0.0

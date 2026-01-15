@@ -79,5 +79,3 @@ def test_extract_unit_edge_cases(_input_str, _expected):
 
     with specleft.step("Then unit should be '{expected}'"):
         pass  # TODO: Implement step logic
-
-

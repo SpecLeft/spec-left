@@ -26,10 +26,12 @@ Thank you for your interest in contributing to SpecLeft SDK! This document provi
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install the package in development mode with dev dependencies:**
+3. **Install pinned dependencies and the package in development mode:**
 
    ```bash
-   pip install -e ".[dev]"
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt
+   pip install -e .
    ```
 
 4. **Verify the installation:**

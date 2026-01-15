@@ -6,7 +6,7 @@ A test management SDK for pytest that enables structured test metadata, step-by-
 
 SpecLeft turns your pytest tests into traceable, reportable assets that actually connect to your feature specifications.
 
-Ever felt like your tests and specs live in completely different universes? SpecLeft is here to fix that disconnect. 
+Ever felt like your tests and specs live in completely different universes? SpecLeft is here to fix that disconnect.
 
 SpecLeft wraps around pytest to inject structure, visibility, and traceability into your testing without requiring a PhD in test framework configuration or vendor lock-in nightmares.
 

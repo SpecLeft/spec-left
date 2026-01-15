@@ -61,5 +61,3 @@ def test_login_invalid_credentials():
 
     with specleft.step("Then login fails with error message"):
         pass  # TODO: Implement step logic
-
-
