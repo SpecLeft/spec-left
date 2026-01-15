@@ -23,6 +23,7 @@ dev = [
     "black",
     "ruff",
     "mypy",
+    "pre-commit",
 ]
 
 [project.scripts]
