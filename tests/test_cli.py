@@ -116,12 +116,21 @@ class TestSkeletonCommand:
                             "name": "Parameterized scenario",
                             "priority": "medium",
                             "test_data": [
-                                {"params": {"input": "a", "expected": "A"}, "description": "lowercase a"},
-                                {"params": {"input": "b", "expected": "B"}, "description": "lowercase b"},
+                                {
+                                    "params": {"input": "a", "expected": "A"},
+                                    "description": "lowercase a",
+                                },
+                                {
+                                    "params": {"input": "b", "expected": "B"},
+                                    "description": "lowercase b",
+                                },
                             ],
                             "steps": [
                                 {"type": "when", "description": "converting '{input}'"},
-                                {"type": "then", "description": "result is '{expected}'"},
+                                {
+                                    "type": "then",
+                                    "description": "result is '{expected}'",
+                                },
                             ],
                         },
                     ],
@@ -155,7 +164,10 @@ class TestSkeletonCommand:
 
             content = generated_file.read_text()
             assert "from specleft import specleft" in content
-            assert '@specleft(feature_id="TEST-001", scenario_id="scenario-one")' in content
+            assert (
+                '@specleft(feature_id="TEST-001", scenario_id="scenario-one")'
+                in content
+            )
             assert "def test_scenario_one" in content
             assert 'specleft.step("Given a precondition")' in content
             assert 'specleft.step("When an action")' in content
@@ -187,7 +199,9 @@ class TestSkeletonCommand:
             Path("features.json").write_text(json.dumps(sample_features_json))
 
             # Run skeleton command with custom output dir
-            result = runner.invoke(cli, ["test", "skeleton", "--output-dir", "custom_tests"])
+            result = runner.invoke(
+                cli, ["test", "skeleton", "--output-dir", "custom_tests"]
+            )
             assert result.exit_code == 0
 
             # Check file is in custom directory
@@ -202,11 +216,15 @@ class TestSkeletonCommand:
             Path("config/my_features.json").write_text(json.dumps(sample_features_json))
 
             # Run skeleton command with custom features file
-            result = runner.invoke(cli, ["test", "skeleton", "-f", "config/my_features.json"])
+            result = runner.invoke(
+                cli, ["test", "skeleton", "-f", "config/my_features.json"]
+            )
             assert result.exit_code == 0
             assert Path("tests/test_test_001.py").exists()
 
-    def test_skeleton_with_parameterized_tests(self, sample_features_with_test_data: dict) -> None:
+    def test_skeleton_with_parameterized_tests(
+        self, sample_features_with_test_data: dict
+    ) -> None:
         """Test skeleton command generates parameterized tests correctly."""
         runner = CliRunner()
         with runner.isolated_filesystem():
@@ -261,7 +279,9 @@ class TestSkeletonCommand:
                                 "id": "scenario-a",
                                 "name": "Scenario A",
                                 "priority": "high",
-                                "steps": [{"type": "given", "description": "something"}],
+                                "steps": [
+                                    {"type": "given", "description": "something"}
+                                ],
                             },
                         ],
                     },
@@ -393,7 +413,9 @@ class TestValidateCommand:
             Path("config").mkdir()
             Path("config/specs.json").write_text(json.dumps(valid_features_json))
 
-            result = runner.invoke(cli, ["features", "validate", "--file", "config/specs.json"])
+            result = runner.invoke(
+                cli, ["features", "validate", "--file", "config/specs.json"]
+            )
             assert result.exit_code == 0
             assert "is valid" in result.output
 
@@ -430,11 +452,20 @@ class TestReportCommand:
                                     "status": "passed",
                                     "duration": 0.5,
                                     "steps": [
-                                        {"description": "Given something", "status": "passed", "duration": 0.1}
+                                        {
+                                            "description": "Given something",
+                                            "status": "passed",
+                                            "duration": 0.1,
+                                        }
                                     ],
                                 },
                             ],
-                            "summary": {"total": 1, "passed": 1, "failed": 0, "skipped": 0},
+                            "summary": {
+                                "total": 1,
+                                "passed": 1,
+                                "failed": 0,
+                                "skipped": 0,
+                            },
                         },
                     ],
                 },

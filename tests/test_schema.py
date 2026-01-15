@@ -466,9 +466,7 @@ class TestFeaturesConfig:
             ],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
             filepath = f.name
 
@@ -489,9 +487,7 @@ class TestFeaturesConfig:
 
     def test_from_file_invalid_json(self) -> None:
         """Test that JSONDecodeError is raised for invalid JSON."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("not valid json {")
             filepath = f.name
 
@@ -520,9 +516,7 @@ class TestFeaturesConfig:
             ],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
             filepath = f.name
 
@@ -584,11 +578,17 @@ class TestComplexFeatures:
                             ],
                             "test_data": [
                                 {
-                                    "params": {"username": "user1", "password": "pass1"},
+                                    "params": {
+                                        "username": "user1",
+                                        "password": "pass1",
+                                    },
                                     "description": "Standard user",
                                 },
                                 {
-                                    "params": {"username": "admin", "password": "admin"},
+                                    "params": {
+                                        "username": "admin",
+                                        "password": "admin",
+                                    },
                                     "description": "Admin user",
                                 },
                             ],
@@ -598,9 +598,7 @@ class TestComplexFeatures:
             ],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f)
             filepath = f.name
 
@@ -643,7 +641,9 @@ class TestComplexFeatures:
             Scenario(id="s2", name="Scenario 2", steps=[step]),
         ]
         scenarios2 = [
-            Scenario(id="s1", name="Scenario 1", steps=[step]),  # Same ID but different feature
+            Scenario(
+                id="s1", name="Scenario 1", steps=[step]
+            ),  # Same ID but different feature
             Scenario(id="s3", name="Scenario 3", steps=[step]),
         ]
 

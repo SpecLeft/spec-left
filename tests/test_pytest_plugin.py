@@ -41,7 +41,10 @@ def sample_features_json() -> dict:
                         "name": "Successful login",
                         "tags": ["smoke", "critical", "auth-flow"],
                         "steps": [
-                            {"type": "given", "description": "user has valid credentials"},
+                            {
+                                "type": "given",
+                                "description": "user has valid credentials",
+                            },
                             {"type": "when", "description": "user logs in"},
                             {"type": "then", "description": "user sees dashboard"},
                         ],
@@ -51,7 +54,10 @@ def sample_features_json() -> dict:
                         "name": "Failed login",
                         "tags": ["regression", "negative"],
                         "steps": [
-                            {"type": "given", "description": "user has invalid credentials"},
+                            {
+                                "type": "given",
+                                "description": "user has invalid credentials",
+                            },
                             {"type": "when", "description": "user tries to log in"},
                             {"type": "then", "description": "user sees error message"},
                         ],
@@ -80,6 +86,7 @@ def sample_features_json() -> dict:
 @pytest.fixture
 def create_features_json(pytester: Pytester, sample_features_json: dict):
     """Create a features.json file in the test directory."""
+
     def _create(features: dict | None = None) -> Path:
         data = features if features is not None else sample_features_json
         features_file = pytester.path / "features.json"
@@ -127,6 +134,7 @@ class TestPytestConfigure:
             ],
         }
         import json
+
         (pytester.path / "features.json").write_text(json.dumps(features))
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
@@ -247,7 +255,9 @@ class TestAutoSkip:
         result = pytester.runpytest("-v", "-rs")  # -rs shows skip reasons
         result.assert_outcomes(skipped=1)
         # Check skip reason is in output (using -rs flag)
-        result.stdout.fnmatch_lines(["*nonexistent-scenario*not found in features.json*"])
+        result.stdout.fnmatch_lines(
+            ["*nonexistent-scenario*not found in features.json*"]
+        )
 
     def test_skip_orphaned_feature(
         self, pytester: Pytester, create_features_json
@@ -462,9 +472,7 @@ class TestMarkerInjection:
         result = pytester.runpytest("-v", "-m", "smoke")
         result.assert_outcomes(passed=1)
 
-    def test_exclude_by_marker(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
+    def test_exclude_by_marker(self, pytester: Pytester, create_features_json) -> None:
         """Test excluding tests by marker."""
         create_features_json()
         pytester.makepyfile(
@@ -493,9 +501,7 @@ class TestMarkerInjection:
 class TestStepCollection:
     """Tests for step collection during test execution."""
 
-    def test_steps_collected(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
+    def test_steps_collected(self, pytester: Pytester, create_features_json) -> None:
         """Test that steps are collected during test execution."""
         create_features_json()
         pytester.makepyfile(
@@ -623,9 +629,7 @@ class TestEdgeCases:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=2)
 
-    def test_invalid_features_json_handled(
-        self, pytester: Pytester
-    ) -> None:
+    def test_invalid_features_json_handled(self, pytester: Pytester) -> None:
         """Test that invalid features.json is handled gracefully."""
         # Create invalid features.json
         features_file = pytester.path / "features.json"
@@ -644,9 +648,7 @@ class TestEdgeCases:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_empty_tags_no_markers_added(
-        self, pytester: Pytester
-    ) -> None:
+    def test_empty_tags_no_markers_added(self, pytester: Pytester) -> None:
         """Test that scenarios with empty tags don't cause issues."""
         features = {
             "version": "1.0",

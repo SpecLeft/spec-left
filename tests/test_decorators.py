@@ -243,8 +243,9 @@ class TestStepContextManager:
 
     def test_step_reraises_exception(self) -> None:
         """Test that step re-raises the original exception."""
-        with pytest.raises(RuntimeError, match="Original error"), step(
-            "Step that fails"
+        with (
+            pytest.raises(RuntimeError, match="Original error"),
+            step("Step that fails"),
         ):
             raise RuntimeError("Original error")
 

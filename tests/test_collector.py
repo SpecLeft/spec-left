@@ -405,9 +405,21 @@ class TestResultCollectorCollect:
             collector = ResultCollector(output_dir=tmpdir)
 
             steps = [
-                {"description": "Given user is logged in", "status": "passed", "duration": 0.1},
-                {"description": "When user clicks button", "status": "passed", "duration": 0.2},
-                {"description": "Then action is performed", "status": "failed", "duration": 0.1},
+                {
+                    "description": "Given user is logged in",
+                    "status": "passed",
+                    "duration": 0.1,
+                },
+                {
+                    "description": "When user clicks button",
+                    "status": "passed",
+                    "duration": 0.2,
+                },
+                {
+                    "description": "Then action is performed",
+                    "status": "failed",
+                    "duration": 0.1,
+                },
             ]
 
             pytest_results = [
