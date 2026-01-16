@@ -1,38 +1,30 @@
-"""SpecLeft - Code-driven test case management for Python."""
+"""SpecLeft - Specification-driven test management for pytest."""
 
 from specleft.decorators import StepResult, reusable_step, specleft, step
 from specleft.schema import (
-    ExecutionSpeed,
-    ExternalReference,
-    Feature,
-    FeatureMetadata,
-    FeaturesConfig,
+    ExecutionTime,
+    FeatureSpec,
     Priority,
-    Scenario,
-    ScenarioMetadata,
-    StepMetadata,
+    ScenarioSpec,
+    SpecDataRow,
+    SpecStep,
+    SpecsConfig,
     StepType,
-    TestDataRow,
-    TestStep,
-    TestType,
+    StorySpec,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
-    "ExecutionSpeed",
-    "ExternalReference",
-    "Feature",
-    "FeatureMetadata",
-    "FeaturesConfig",
+    "ExecutionTime",
+    "FeatureSpec",
     "Priority",
-    "Scenario",
-    "ScenarioMetadata",
-    "StepMetadata",
+    "ScenarioSpec",
+    "SpecDataRow",
+    "SpecStep",
+    "SpecsConfig",
     "StepResult",
     "StepType",
-    "TestDataRow",
-    "TestStep",
-    "TestType",
+    "StorySpec",
     "reusable_step",
     "specleft",
     "step",

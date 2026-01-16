@@ -2,7 +2,7 @@
 
 This plugin provides:
 - Automatic collection of @specleft decorated tests
-- Auto-skip for tests whose scenarios are removed from features.json
+- Auto-skip for tests whose scenarios are removed from specs
 - Runtime marker injection from scenario tags
 - Step-by-step result capture
 - Result persistence to .specleft/results/
@@ -32,70 +32,78 @@ def pytest_configure(config: Config) -> None:
     """
     config._specleft_results = []  # type: ignore[attr-defined]
     config._specleft_start_time = datetime.now()  # type: ignore[attr-defined]
-    config._specleft_features_config = None  # type: ignore[attr-defined]
+    config._specleft_specs_config = None  # type: ignore[attr-defined]
 
     # Register custom markers
     config.addinivalue_line("markers", "specleft: mark test as a SpecLeft managed test")
 
 
-def _load_features_config(
+def _load_specs_config(
     config: Config,
 ) -> dict[tuple[str, str], dict[str, Any]] | None:
-    """Load features.json and build a lookup of valid scenarios.
+    """Load Markdown specs and build a lookup of valid scenarios.
 
     Args:
         config: Pytest config object.
 
     Returns:
         Dictionary mapping (feature_id, scenario_id) to scenario info,
-        or None if features.json is not found or invalid.
+        or None if specs are not found or invalid.
     """
-    from specleft.schema import FeaturesConfig
+    try:
+        from specleft.validator import load_specs_directory
+    except ImportError:
+        logger.warning("Spec parser not available; skipping specs validation.")
+        return None
 
-    # Try multiple potential locations for features.json
+    # Try multiple potential locations for specs
     search_paths = [
-        Path("features.json"),
-        Path("examples/features.json"),
-        config.rootpath / "features.json",
-        config.rootpath / "examples" / "features.json",
+        Path("features"),
+        Path("examples/features"),
+        config.rootpath / "features",
+        config.rootpath / "examples" / "features",
     ]
 
-    features_file = None
+    specs_dir = None
     for path in search_paths:
         if path.exists():
-            features_file = path
+            specs_dir = path
             break
 
-    if features_file is None:
+    if specs_dir is None:
         logger.warning(
-            "features.json not found. Running all @specleft tests without validation. "
-            "Create features.json to enable scenario validation and marker injection."
+            "Specs directory not found. Running all @specleft tests without validation. "
+            "Create a features directory to enable scenario validation and marker injection."
         )
         return None
 
     try:
-        features_config = FeaturesConfig.from_file(features_file)
-        config._specleft_features_config = features_config  # type: ignore[attr-defined]
+        specs_config = load_specs_directory(specs_dir)
+        config._specleft_specs_config = specs_config  # type: ignore[attr-defined]
 
         # Build lookup of valid (feature_id, scenario_id) pairs and their info
         valid_scenarios: dict[tuple[str, str], dict[str, Any]] = {}
-        for feature in features_config.features:
-            for scenario in feature.scenarios:
-                key = (feature.id, scenario.id)
-                valid_scenarios[key] = {
-                    "tags": scenario.tags,
-                    "feature_name": feature.name,
-                    "scenario_name": scenario.name,
-                    "priority": scenario.priority.value,
-                }
+        for feature in specs_config.features:
+            for story in feature.stories:
+                for scenario in story.scenarios:
+                    key = (feature.feature_id, scenario.scenario_id)
+                    valid_scenarios[key] = {
+                        "tags": scenario.tags,
+                        "feature_name": feature.name,
+                        "scenario_name": scenario.name,
+                        "priority": scenario.priority.value,
+                    }
         return valid_scenarios
     except FileNotFoundError:
         logger.warning(
-            "features.json not found. Running all @specleft tests without validation."
+            "Specs directory not found. Running all @specleft tests without validation."
         )
         return None
+    except ValueError as e:
+        logger.error(f"Error loading specs: {e}")
+        return None
     except Exception as e:
-        logger.error(f"Error loading features.json: {e}")
+        logger.error(f"Unexpected error loading specs: {e}")
         return None
 
 
@@ -119,11 +127,11 @@ def pytest_collection_modifyitems(
 
     Identifies tests decorated with @specleft and extracts their metadata
     for later result collection. Also handles:
-    - Auto-skip for tests whose scenarios are removed from features.json
+    - Auto-skip for tests whose scenarios are removed from specs
     - Runtime marker injection from scenario tags
     """
-    # Load features.json once for validation and marker injection
-    valid_scenarios = _load_features_config(config)
+    # Load specs once for validation and marker injection
+    valid_scenarios = _load_specs_config(config)
 
     for item in items:
         # Get the original function (unwrap any wrappers)
@@ -161,23 +169,21 @@ def pytest_collection_modifyitems(
             # Add the specleft marker
             item.add_marker(pytest.mark.specleft)
 
-            # Auto-skip and marker injection (only if features.json was loaded)
+            # Auto-skip and marker injection (only if specs were loaded)
             if valid_scenarios is not None:
                 scenario_key = (feature_id, scenario_id)
 
                 if scenario_key not in valid_scenarios:
-                    # Auto-skip: Scenario not found in features.json
+                    # Auto-skip: Scenario not found in specs
                     skip_marker = pytest.mark.skip(
                         reason=(
                             f"Scenario '{scenario_id}' (feature: {feature_id}) not found "
-                            f"in features.json. This test is orphaned and should be removed "
+                            f"in specs. This test is orphaned and should be removed "
                             f"or the scenario should be re-added."
                         )
                     )
                     item.add_marker(skip_marker)
-                    logger.warning(
-                        f"Skipping {item.nodeid}: scenario not in features.json"
-                    )
+                    logger.warning(f"Skipping {item.nodeid}: scenario not in specs")
                 else:
                     # Runtime marker injection from tags
                     scenario_info = valid_scenarios[scenario_key]

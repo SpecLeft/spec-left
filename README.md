@@ -43,45 +43,71 @@ pip install -e "spec-left[dev]"
 
 ## Quick Start
 
-### 1. Define Features (features.json)
+### 1. Define Features (Markdown specs)
 
-Create a `features.json` file describing your test scenarios:
+Create Markdown specs under `features/`:
 
-```json
-{
-  "version": "1.0",
-  "features": [
-    {
-      "id": "AUTH-001",
-      "name": "User Authentication",
-      "description": "Users can securely log in and out of the system",
-      "metadata": {
-        "owner": "auth-team",
-        "component": "authentication",
-        "priority": "critical"
-      },
-      "scenarios": [
-        {
-          "id": "login-success",
-          "name": "Successful login with valid credentials",
-          "priority": "critical",
-          "tags": ["smoke", "authentication"],
-          "steps": [
-            {"type": "given", "description": "user has valid credentials"},
-            {"type": "when", "description": "user attempts to login"},
-            {"type": "then", "description": "user is authenticated"}
-          ]
-        }
-      ]
-    }
-  ]
-}
+```text
+features/
+└── auth/
+    ├── _feature.md
+    └── login/
+        ├── _story.md
+        └── login_success.md
+```
+
+Example `_feature.md`:
+
+```markdown
+---
+feature_id: auth
+component: authentication
+owner: auth-team
+priority: critical
+tags: [smoke]
+---
+
+# Feature: User Authentication
+
+Users can securely log in and out of the system.
+```
+
+Example `_story.md`:
+
+```markdown
+---
+story_id: login
+priority: high
+tags: [authentication]
+---
+
+# Story: Login
+
+Login scenarios for authenticated users.
+```
+
+Example scenario file:
+
+```markdown
+---
+scenario_id: login-success
+priority: critical
+tags: [smoke, authentication]
+execution_time: fast
+---
+
+# Scenario: Successful login with valid credentials
+
+## Steps
+- **Given** user has valid credentials
+- **When** user attempts to login
+- **Then** user is authenticated
 ```
 
 ### 2. Generate Skeleton Tests
 
 ```bash
-specleft test skeleton --features-file features.json --output-dir tests/
+specleft test skeleton --features-dir features --output-dir tests/
 ```
 
 This generates test files with `@specleft` decorators and step context managers:
@@ -89,7 +115,7 @@ This generates test files with `@specleft` decorators and step context managers:
 ```python
 from specleft import specleft
 
-@specleft(feature_id="AUTH-001", scenario_id="login-success")
+@specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     with specleft.step("Given user has valid credentials"):
         pass  # TODO: Implement
@@ -108,7 +134,7 @@ Fill in the step implementations:
 ```python
 from specleft import specleft
 
-@specleft(feature_id="AUTH-001", scenario_id="login-success")
+@specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success(auth_service):
     with specleft.step("Given user has valid credentials"):
         username, password = "admin", "admin123"
@@ -152,7 +178,7 @@ def verify_authenticated(auth_service, username: str) -> None:
     """Reusable verification step."""
     assert auth_service.is_authenticated(username)
 
-@specleft(feature_id="AUTH-001", scenario_id="login-success")
+@specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success(auth_service):
     with specleft.step("Given user has valid credentials"):
         username, password = "admin", "admin123"
@@ -170,13 +196,13 @@ def test_login_success(auth_service):
 
 ### `specleft test skeleton`
 
-Generate skeleton test files from a features.json specification.
+Generate skeleton test files from Markdown specs.
 
 ```bash
 specleft test skeleton [OPTIONS]
 
 Options:
-  -f, --features-file PATH  Path to features.json (default: features.json)
+  -f, --features-dir PATH   Path to features directory (default: features)
   -o, --output-dir PATH     Output directory (default: tests)
   --single-file             Generate all tests in one file
 ```
@@ -196,18 +222,40 @@ Options:
 
 ### `specleft features validate`
 
-Validate a features.json file against the schema.
+Validate Markdown specs against the schema.
 
 ```bash
 specleft features validate [OPTIONS]
 
 Options:
-  --file PATH   Path to features.json (default: features.json)
+  --dir PATH   Path to features directory (default: features)
+```
+
+### `specleft features list`
+
+List features, stories, and scenarios.
+
+```bash
+specleft features list [OPTIONS]
+
+Options:
+  --dir PATH   Path to features directory (default: features)
+```
+
+### `specleft features stats`
+
+Show aggregate statistics for Markdown specs.
+
+```bash
+specleft features stats [OPTIONS]
+
+Options:
+  --dir PATH   Path to features directory (default: features)
 ```
 
 ## Filtering Tests by Tags
 
-Scenario tags are automatically injected as pytest markers at runtime:
+Scenario tags are automatically injected as pytest markers at runtime (from Markdown specs):
 
 ```bash
 # Run only smoke tests
@@ -222,70 +270,35 @@ pytest -m "smoke and authentication"
 
 ## Auto-Skip Orphaned Tests
 
-When a scenario is removed from `features.json`, the corresponding test is automatically skipped with a clear message:
+When a scenario is removed from the `features/` specs, the corresponding test is automatically skipped with a clear message:
 
 ```
-SKIPPED [1] test_auth.py: Scenario 'old-scenario' (feature: AUTH-001) not found in features.json
+SKIPPED [1] test_auth.py: Scenario 'old-scenario' (feature: AUTH-001) not found in features specs
 ```
 
 This helps identify tests that need to be removed or updated.
 
 ## Schema Reference
 
-### features.json Structure
+### Markdown Specs Structure
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `version` | string | Schema version (default: "1.0") |
-| `features` | array | List of feature objects |
+SpecLeft v2 expects a `features/` directory with:
 
-### Feature Object
+- `features/<feature>/_feature.md` for feature metadata
+- `features/<feature>/<story>/_story.md` for story metadata
+- `features/<feature>/<story>/<scenario>.md` for scenarios
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique ID matching `[A-Z0-9-]+` |
-| `name` | string | Yes | Human-readable name |
-| `description` | string | No | Feature description |
-| `metadata` | object | No | Feature-level metadata |
-| `scenarios` | array | Yes | List of scenario objects |
+Scenario files include frontmatter plus `## Steps` and optional `## Test Data`.
 
-### Feature Metadata
+### Spec Structure
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `owner` | string | Team or person responsible |
-| `component` | string | Component name |
-| `priority` | string | "critical", "high", "medium", "low" |
-| `tags` | array | Feature-level tags |
-| `external_references` | array | Links to external systems (Jira, GitHub, etc.) |
-| `links` | object | Documentation and other links |
-| `custom` | object | Extensible custom fields |
-
-### Scenario Object
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique ID matching `[a-z0-9-]+` |
-| `name` | string | Yes | Human-readable name |
-| `description` | string | No | Scenario description |
-| `priority` | string | No | "critical", "high", "medium", "low" |
-| `tags` | array | No | List of tag strings (become pytest markers) |
-| `metadata` | object | No | Scenario-level metadata |
-| `steps` | array | Yes | List of step objects |
-| `test_data` | array | No | Parameterization data |
-
-### Scenario Metadata
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `test_type` | string | "smoke", "regression", "integration", "e2e", "performance", "unit" |
-| `execution_time` | string | "fast", "medium", "slow" |
-| `dependencies` | array | Required services/resources |
-| `author` | string | Test author |
-| `flaky` | boolean | Mark test as flaky |
-| `skip` | boolean | Skip this test |
-| `skip_reason` | string | Reason for skipping |
-| `custom` | object | Extensible custom fields |
+| Section | Description |
+|---------|-------------|
+| Feature frontmatter | `feature_id`, `component`, `owner`, `priority`, `tags` |
+| Story frontmatter | `story_id`, `priority`, `tags` |
+| Scenario frontmatter | `scenario_id`, `priority`, `tags`, `execution_time` |
+| `## Steps` | BDD steps like `Given/When/Then/And/But` |
+| `## Test Data` | Optional Markdown table for parameterized tests |
 
 ### Step Object
 
@@ -304,27 +317,33 @@ This helps identify tests that need to be removed or updated.
 
 ## Parameterized Tests
 
-Define test data in features.json:
+Define test data in Markdown scenario files:
 
-```json
-{
-  "id": "extract-unit-valid",
-  "name": "Extract unit from valid input",
-  "test_data": [
-    {"params": {"input": "10kg", "expected": "kg"}, "description": "Kilograms"},
-    {"params": {"input": "5lb", "expected": "lb"}, "description": "Pounds"}
-  ],
-  "steps": [
-    {"type": "when", "description": "extracting unit from '{input}'"},
-    {"type": "then", "description": "unit should be '{expected}'"}
-  ]
-}
+```markdown
+---
+scenario_id: extract-unit-valid
+priority: medium
+tags: [parsing]
+execution_time: fast
+---
+
+# Scenario: Extract unit from valid input
+
+## Test Data
+| input | expected | description |
+|-------|----------|-------------|
+| 10kg | kg | Kilograms |
+| 5lb | lb | Pounds |
+
+## Steps
+- **When** extracting unit from '{input}'
+- **Then** unit should be '{expected}'
 ```
 
 Generated test:
 
 ```python
-@specleft(feature_id="PARSE-001", scenario_id="extract-unit-valid")
+@specleft(feature_id="parse", scenario_id="extract-unit-valid")
 @pytest.mark.parametrize("input, expected", [
     ("10kg", "kg"),
     ("5lb", "lb"),
@@ -366,14 +385,17 @@ spec-left/
 ├── pyproject.toml
 ├── README.md
 ├── CONTRIBUTING.md
+├── features/
+│   └── ...
 ├── examples/
-│   ├── features.json
 │   └── test_example.py
 ├── src/
 │   └── specleft/
 │       ├── __init__.py
 │       ├── decorators.py
 │       ├── schema.py
+│       ├── parser.py
+│       ├── validator.py
 │       ├── pytest_plugin.py
 │       ├── collector.py
 │       ├── cli/
@@ -385,6 +407,7 @@ spec-left/
 └── tests/
     ├── test_decorators.py
     ├── test_schema.py
+    ├── test_parser.py
     ├── test_collector.py
     ├── test_cli.py
     └── test_pytest_plugin.py

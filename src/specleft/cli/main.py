@@ -11,7 +11,7 @@ from pathlib import Path
 import click
 from jinja2 import Environment, FileSystemLoader
 
-from specleft.schema import FeaturesConfig
+from specleft.validator import collect_spec_stats, load_specs_directory
 
 
 def to_snake_case(name: str) -> str:
@@ -33,7 +33,7 @@ def to_snake_case(name: str) -> str:
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="specleft")
+@click.version_option(version="0.2.0", prog_name="specleft")
 def cli() -> None:
     """SpecLeft - Code-driven test case management for Python."""
     pass
@@ -48,10 +48,10 @@ def test() -> None:
 
 @test.command("skeleton")
 @click.option(
-    "--features-file",
+    "--features-dir",
     "-f",
-    default="features.json",
-    help="Path to features.json file.",
+    default="features",
+    help="Path to features directory.",
 )
 @click.option(
     "--output-dir",
@@ -64,21 +64,28 @@ def test() -> None:
     is_flag=True,
     help="Generate all tests in a single file (test_generated.py).",
 )
-def test_skeleton(features_file: str, output_dir: str, single_file: bool) -> None:
-    """Generate skeleton test files from features.json.
+def test_skeleton(features_dir: str, output_dir: str, single_file: bool) -> None:
+    """Generate skeleton test files from Markdown feature specs.
 
-    Reads the features.json specification and generates pytest test files
+    Reads the features directory specification and generates pytest test files
     with @specleft decorators and step context managers.
     """
-    # Load and validate features.json
+    # Load and validate specs directory
     try:
-        config = FeaturesConfig.from_file(features_file)
+        config = load_specs_directory(features_dir)
     except FileNotFoundError:
-        click.secho(f"Error: {features_file} not found", fg="red", err=True)
-        click.echo("Run 'specleft features init' to create a template features.json")
+        click.secho(f"Error: {features_dir} not found", fg="red", err=True)
+        click.echo("Create a features directory with Markdown specs to continue.")
+        sys.exit(1)
+    except ValueError as e:
+        click.secho(f"Error loading specs from {features_dir}: {e}", fg="red", err=True)
         sys.exit(1)
     except Exception as e:
-        click.secho(f"Error loading {features_file}: {e}", fg="red", err=True)
+        click.secho(
+            f"Unexpected error loading specs from {features_dir}: {e}",
+            fg="red",
+            err=True,
+        )
         sys.exit(1)
 
     # Setup Jinja2 environment
@@ -109,13 +116,15 @@ def test_skeleton(features_file: str, output_dir: str, single_file: bool) -> Non
         # Generate one file per feature
         for feature in config.features:
             content = template.render(features=[feature])
-            filename = f"test_{feature.id.lower().replace('-', '_')}.py"
+            filename = f"test_{feature.feature_id.lower().replace('-', '_')}.py"
             output_file = output_path / filename
             output_file.write_text(content)
             click.secho(f"Generated: {output_file}", fg="green")
 
     # Summary
-    total_scenarios = sum(len(f.scenarios) for f in config.features)
+    total_scenarios = sum(
+        len(story.scenarios) for feature in config.features for story in feature.stories
+    )
     click.echo(
         f"\nGenerated {len(config.features)} feature(s) "
         f"with {total_scenarios} scenario(s)"
@@ -216,29 +225,97 @@ def features() -> None:
 
 @features.command("validate")
 @click.option(
-    "--file",
-    "filepath",
-    default="features.json",
-    help="Path to features.json file.",
+    "--dir",
+    "features_dir",
+    default="features",
+    help="Path to features directory.",
 )
-def features_validate(filepath: str) -> None:
-    """Validate features.json schema.
+def features_validate(features_dir: str) -> None:
+    """Validate Markdown specs in a features directory.
 
-    Checks that the features.json file is valid according to the SpecLeft schema.
+    Checks that the specs directory is valid according to the SpecLeft schema.
     Returns exit code 0 if valid, 1 if invalid.
     """
     try:
-        config = FeaturesConfig.from_file(filepath)
-        click.secho(f"✓ {filepath} is valid", fg="green")
-        click.echo(f"  Features: {len(config.features)}")
-        click.echo(f"  Scenarios: {sum(len(f.scenarios) for f in config.features)}")
+        config = load_specs_directory(features_dir)
+        stats = collect_spec_stats(config)
+        click.secho(f"✓ {features_dir} is valid", fg="green")
+        click.echo(f"  Features: {stats.feature_count}")
+        click.echo(f"  Stories: {stats.story_count}")
+        click.echo(f"  Scenarios: {stats.scenario_count}")
+        click.echo(f"  Steps: {stats.step_count}")
         sys.exit(0)
     except FileNotFoundError:
-        click.secho(f"✗ File not found: {filepath}", fg="red", err=True)
+        click.secho(f"✗ Directory not found: {features_dir}", fg="red", err=True)
         sys.exit(1)
-    except Exception as e:
+    except ValueError as e:
         click.secho(f"✗ Validation failed: {e}", fg="red", err=True)
         sys.exit(1)
+    except Exception as e:
+        click.secho(f"✗ Unexpected validation failure: {e}", fg="red", err=True)
+        sys.exit(1)
+
+
+@features.command("list")
+@click.option(
+    "--dir",
+    "features_dir",
+    default="features",
+    help="Path to features directory.",
+)
+def features_list(features_dir: str) -> None:
+    """List features, stories, and scenarios."""
+    try:
+        config = load_specs_directory(features_dir)
+    except FileNotFoundError:
+        click.secho(f"✗ Directory not found: {features_dir}", fg="red", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.secho(f"✗ Unable to load specs: {e}", fg="red", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"✗ Unexpected error loading specs: {e}", fg="red", err=True)
+        sys.exit(1)
+
+    click.echo(f"Features ({len(config.features)}):")
+    for feature in config.features:
+        click.echo(f"- {feature.feature_id}: {feature.name}")
+        for story in feature.stories:
+            click.echo(f"  - {story.story_id}: {story.name}")
+            for scenario in story.scenarios:
+                click.echo(f"    - {scenario.scenario_id}: {scenario.name}")
+
+
+@features.command("stats")
+@click.option(
+    "--dir",
+    "features_dir",
+    default="features",
+    help="Path to features directory.",
+)
+def features_stats(features_dir: str) -> None:
+    """Show aggregate statistics for specs."""
+    try:
+        config = load_specs_directory(features_dir)
+        stats = collect_spec_stats(config)
+    except FileNotFoundError:
+        click.secho(f"✗ Directory not found: {features_dir}", fg="red", err=True)
+        sys.exit(1)
+    except ValueError as e:
+        click.secho(f"✗ Unable to load specs: {e}", fg="red", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"✗ Unexpected error loading specs: {e}", fg="red", err=True)
+        sys.exit(1)
+
+    click.echo("Spec stats:")
+    click.echo(f"  Features: {stats.feature_count}")
+    click.echo(f"  Stories: {stats.story_count}")
+    click.echo(f"  Scenarios: {stats.scenario_count}")
+    click.echo(f"  Steps: {stats.step_count}")
+    click.echo(f"  Parameterized scenarios: {stats.parameterized_scenario_count}")
+    if stats.tags:
+        click.echo(f"  Tags: {', '.join(sorted(stats.tags))}")
 
 
 if __name__ == "__main__":

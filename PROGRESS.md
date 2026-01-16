@@ -8,14 +8,14 @@ This document tracks the implementation progress of the SpecLeft SDK. v1 is comp
 
 ### v2 Foundation (In Progress)
 
-Phase tracking is now managed in GitHub issues under the "Foundation v2" milestone. Each phase has a feature issue with child story issues:
-- Phase 1: Schema & Parser (`https://github.com/SpecLeft/spec-left/issues/16`)
-- Phase 2: CLI Feature Ops (`https://github.com/SpecLeft/spec-left/issues/17`)
-- Phase 3: Decorators & Steps (`https://github.com/SpecLeft/spec-left/issues/18`)
-- Phase 4: Pytest Plugin & Collector (`https://github.com/SpecLeft/spec-left/issues/19`)
-- Phase 5: CLI Test Ops (`https://github.com/SpecLeft/spec-left/issues/20`)
-- Phase 6: Test Revision System (`https://github.com/SpecLeft/spec-left/issues/21`)
-- Phase 7: Docs & Examples (`https://github.com/SpecLeft/spec-left/issues/22`)
+Phase tracking is managed in GitHub issues under the "Foundation v2" milestone. Each phase has a feature issue with child story issues:
+- Phase 1: Schema & Parser (`https://github.com/SpecLeft/spec-left/issues/16`) - Complete
+- Phase 2: CLI Feature Ops (`https://github.com/SpecLeft/spec-left/issues/17`) - In progress
+- Phase 3: Decorators & Steps (`https://github.com/SpecLeft/spec-left/issues/18`) - Not started
+- Phase 4: Pytest Plugin & Collector (`https://github.com/SpecLeft/spec-left/issues/19`) - Not started
+- Phase 5: CLI Test Ops (`https://github.com/SpecLeft/spec-left/issues/20`) - Not started
+- Phase 6: Test Revision System (`https://github.com/SpecLeft/spec-left/issues/21`) - Not started
+- Phase 7: Docs & Examples (`https://github.com/SpecLeft/spec-left/issues/22`) - Not started
 
 Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 
@@ -23,42 +23,39 @@ Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 
 ### Phase 1: Schema Definition (schema.py) ✅ COMPLETE
 
-**Goal:** Define the features.json structure using Pydantic models with generic, extensible metadata.
+**Goal:** Define the Markdown spec structure using Pydantic models with generic, extensible metadata.
 
 **Implemented:**
-- [x] `StepType` enum (given/when/then/and)
+- [x] `StepType` enum (given/when/then/and/but)
 - [x] `Priority` enum (critical/high/medium/low)
-- [x] `ExecutionSpeed` enum (fast/medium/slow)
-- [x] `TestType` enum (smoke/regression/integration/e2e/performance/unit)
-- [x] `ExternalReference` model - Generic external system reference
-- [x] `StepMetadata` model - Step-level metadata (timeout, retry, continue_on_failure)
-- [x] `ScenarioMetadata` model - Scenario-level metadata (test_type, execution_time, dependencies, etc.)
-- [x] `FeatureMetadata` model - Feature-level metadata (owner, component, priority, tags, links)
-- [x] `TestStep` model - Individual test step
-- [x] `TestDataRow` model - Parameter data for parameterized tests
-- [x] `Scenario` model - Test scenario with steps
-- [x] `Feature` model - Feature containing scenarios
-- [x] `FeaturesConfig` model - Root configuration
+- [x] `ExecutionTime` enum (fast/medium/slow)
+- [x] `SpecStep` model - Individual test step
+- [x] `SpecDataRow` model - Parameter data for parameterized tests
+- [x] `ScenarioSpec` model - Scenario specification
+- [x] `StorySpec` model - Story specification
+- [x] `FeatureSpec` model - Feature specification
+- [x] `SpecsConfig` model - Root configuration
 
 **Validation:**
-- [x] Feature IDs match pattern `^[A-Z0-9-]+$`
-- [x] Scenario IDs match pattern `^[a-z0-9-]+$` and are unique within a feature
+- [x] Feature IDs match pattern `^[a-z0-9-]+$`
+- [x] Scenario IDs match pattern `^[a-z0-9-]+$` and are unique across specs
 - [x] Step descriptions cannot be empty
 - [x] Feature IDs are unique across the config
-- [x] `FeaturesConfig.from_file()` helper method to load JSON
+- [x] `SpecsConfig.from_directory()` helper method to load Markdown specs
 
 **Tests:** `tests/test_schema.py` - 39 tests passing
 
 **Success Criteria Met:**
-- ✅ Pydantic models validate features.json structure
-- ✅ Generic metadata structure (no hardcoded integrations)
-- ✅ Extensible `custom` dict at all metadata levels
-- ✅ All metadata is optional (allows minimal features.json)
+- ✅ Pydantic models validate Markdown spec structure
+- ✅ IDs follow v2 naming conventions
+- ✅ All metadata fields are optional
 - ✅ Clear error messages on validation failures
 
 ---
 
 ### Phase 2: Decorator Implementation (decorators.py) ✅ COMPLETE
+
+Note: v1 phases below are historical; v2 progress is tracked in milestone issues.
 
 **Goal:** Create the `@specleft` decorator, `specleft.step()` context manager, and `@reusable_step` decorator for reusable step methods.
 
@@ -95,17 +92,17 @@ Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 - [x] `pytest_sessionfinish` hook - Saves results to disk
 - [x] Auto-skip tests for removed scenarios with clear skip message
 - [x] Runtime marker injection from scenario tags (makes tests filterable with `pytest -m <tag>`)
-- [x] Multiple features.json search paths (current dir, examples/, rootdir)
-- [x] Graceful handling of missing/invalid features.json (warning only, tests still run)
+- [x] Multiple specs search paths (current dir, examples/, rootdir)
+- [x] Graceful handling of missing/invalid specs (warning only, tests still run)
 
 **Tests:** `tests/test_pytest_plugin.py` - 28 tests passing
 
 **Success Criteria Met:**
 - ✅ Basic pytest hooks collect @specleft decorated tests
-- ✅ Tests are auto-skipped if scenario not in features.json with clear message
+- ✅ Tests are auto-skipped if scenario not in specs with clear message
 - ✅ Scenario tags are injected as pytest markers at runtime
 - ✅ Tests can be filtered with `pytest -m <tag>`
-- ✅ Missing features.json logs warning but tests still run
+- ✅ Missing specs logs warning but tests still run
 - ✅ Results are saved to `.specleft/results/` after session
 
 ---
@@ -122,7 +119,7 @@ Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 
 ### Phase 5: CLI - Skeleton Generation (cli/main.py) ✅ COMPLETE
 
-**Goal:** Create CLI commands to generate skeleton tests from features.json.
+**Goal:** Create CLI commands to generate skeleton tests from specs.
 
 **Implemented:**
 - [x] Click CLI framework with resource-based command structure
@@ -137,8 +134,8 @@ Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 **Tests:** `tests/test_cli.py` - 32 tests passing
 
 **Success Criteria Met:**
-- ✅ `specleft test skeleton` generates test stubs from features.json
-- ✅ `specleft features validate` validates features.json schema
+- ✅ `specleft test skeleton` generates test stubs from specs
+- ✅ `specleft features validate` validates specs schema
 - ✅ Generated tests use `@specleft` decorator with correct IDs
 - ✅ Parameterized tests are generated correctly with `@pytest.mark.parametrize`
 - ✅ Step context managers are included with `pass` statements
@@ -175,7 +172,7 @@ Use `.llm/SpecLeft-v2-iteration.md` only for detailed reference when needed.
 **Goal:** Create working examples and comprehensive documentation.
 
 **Implemented:**
-- [x] `examples/features.json` - Comprehensive example with 2 features, 5 scenarios using generic metadata
+- [x] `examples/features/` - Comprehensive example with 2 features, 5 scenarios using generic metadata
 - [x] `examples/test_example.py` - Full example demonstrating:
   - Regular tests with step context managers
   - Parameterized tests with `@pytest.mark.parametrize`

@@ -87,7 +87,7 @@ class ResultCollector:
             features_list.append(
                 {
                     "feature_id": feature_id,
-                    "feature_name": feature_id,  # TODO: Get from features.json
+                    "feature_name": feature_id,  # TODO: Get from specs
                     "scenarios": scenarios_list,
                 }
             )

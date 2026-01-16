@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spec-left"
-version = "0.1.0"
+version = "0.2.0"
 description = "Code-driven test case management for pytest"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "click>=8.0.0",
     "jinja2>=3.0.0",
+    "python-frontmatter>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -33,9 +34,9 @@ specleft = "specleft.cli.main:cli"
 specleft = "specleft.pytest_plugin"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/spec-left"
-Documentation = "https://spec-left.readthedocs.io"
-Repository = "https://github.com/yourusername/spec-left"
+Homepage = "https://github.com/SpecLeft/spec-left"
+Documentation = "https://github.com/SpecLeft/spec-left"
+Repository = "https://github.com/SpecLeft/spec-left"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -121,7 +122,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src/shiftleft",
+    "--cov=src/specleft",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html",
     "--cov-report=xml",

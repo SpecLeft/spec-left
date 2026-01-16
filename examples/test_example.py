@@ -5,7 +5,7 @@ This file shows how to use:
 - @specleft decorator for test metadata
 - specleft.step() context manager for step tracking
 - @reusable_step decorator for reusable step methods
-- Parameterized tests with test_data from features.json
+- Parameterized tests with test_data from specs
 """
 
 import re
@@ -97,7 +97,9 @@ def verify_authenticated(auth_service: AuthService, username: str) -> None:
     Raises:
         AssertionError: If user is not authenticated
     """
-    assert auth_service.is_authenticated(username), f"User '{username}' is not authenticated"
+    assert auth_service.is_authenticated(
+        username
+    ), f"User '{username}' is not authenticated"
 
 
 @reusable_step("Verify session exists for '{username}'")
@@ -126,11 +128,11 @@ def auth_service() -> AuthService:
 
 
 # =============================================================================
-# Feature: AUTH-001 - User Authentication
+# Feature: auth - User Authentication
 # =============================================================================
 
 
-@specleft(feature_id="AUTH-001", scenario_id="login-success")
+@specleft(feature_id="auth", scenario_id="login-success")
 @pytest.mark.parametrize(
     "username, password",
     [
@@ -165,7 +167,7 @@ def test_login_success(auth_service: AuthService, username: str, password: str) 
     verify_session_exists(auth_service, username)
 
 
-@specleft(feature_id="AUTH-001", scenario_id="login-invalid-credentials")
+@specleft(feature_id="auth", scenario_id="login-invalid-credentials")
 def test_login_invalid_credentials(auth_service: AuthService) -> None:
     """Login fails with invalid credentials.
 
@@ -190,11 +192,11 @@ def test_login_invalid_credentials(auth_service: AuthService) -> None:
 
 
 # =============================================================================
-# Feature: PARSE-001 - Unit Parsing
+# Feature: parse - Unit Parsing
 # =============================================================================
 
 
-@specleft(feature_id="PARSE-001", scenario_id="extract-unit-valid")
+@specleft(feature_id="parse", scenario_id="extract-unit-valid")
 @pytest.mark.parametrize(
     "input_str, expected",
     [
@@ -219,7 +221,7 @@ def test_extract_unit_valid(input_str: str, expected: str) -> None:
         assert result == expected, f"Expected '{expected}', got '{result}'"
 
 
-@specleft(feature_id="PARSE-001", scenario_id="extract-unit-invalid")
+@specleft(feature_id="parse", scenario_id="extract-unit-invalid")
 def test_extract_unit_invalid() -> None:
     """Handle invalid input gracefully.
 

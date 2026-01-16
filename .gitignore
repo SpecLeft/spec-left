@@ -4,6 +4,7 @@ CLAUDE.md
 PROGRESS.md
 *report.html
 .llm/
+AGENTS*.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

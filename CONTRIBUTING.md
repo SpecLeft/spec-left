@@ -135,12 +135,14 @@ spec-left/
 ├── src/specleft/           # Main package source
 │   ├── __init__.py         # Public API exports
 │   ├── decorators.py       # @specleft and @reusable_step decorators
-│   ├── schema.py           # Pydantic models for features.json
+│   ├── schema.py           # Pydantic models for Markdown specs
 │   ├── pytest_plugin.py    # Pytest hooks integration
 │   ├── collector.py        # Result collection and JSON output
 │   ├── cli/                # CLI commands
 │   │   ├── __init__.py
 │   │   └── main.py
+│   ├── parser.py           # Markdown spec parser
+│   ├── validator.py        # Spec validation helpers
 │   └── templates/          # Jinja2 templates
 │       ├── skeleton_test.py.jinja2
 │       └── report.html.jinja2
@@ -148,9 +150,9 @@ spec-left/
 │   ├── test_schema.py
 │   ├── test_decorators.py
 │   ├── test_pytest_plugin.py
-│   └── test_cli.py
+│   ├── test_cli.py
+│   └── test_parser.py
 ├── examples/               # Example usage
-│   ├── features.json
 │   └── test_example.py
 ├── pyproject.toml          # Project configuration
 ├── README.md               # User documentation
@@ -214,7 +216,7 @@ spec-left/
 
 Examples:
 - `Add reusable step decorator with parameter interpolation`
-- `Fix auto-skip not working when features.json is missing`
+- `Fix auto-skip not working when specs are missing`
 - `Update README with CLI command examples`
 
 ## Testing Guidelines
