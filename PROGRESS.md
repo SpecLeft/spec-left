@@ -10,8 +10,8 @@ This document tracks the implementation progress of the SpecLeft SDK. v1 is comp
 
 Phase tracking is managed in GitHub issues under the "Foundation v2" milestone. Each phase has a feature issue with child story issues:
 - Phase 1: Schema & Parser (`https://github.com/SpecLeft/spec-left/issues/16`) - Complete
-- Phase 2: CLI Feature Ops (`https://github.com/SpecLeft/spec-left/issues/17`) - In progress
-- Phase 3: Decorators & Steps (`https://github.com/SpecLeft/spec-left/issues/18`) - Not started
+- Phase 2: CLI Feature Ops (`https://github.com/SpecLeft/spec-left/issues/17`) - Complete
+- Phase 3: Decorators & Steps (`https://github.com/SpecLeft/spec-left/issues/18`) - Complete
 - Phase 4: Pytest Plugin & Collector (`https://github.com/SpecLeft/spec-left/issues/19`) - Not started
 - Phase 5: CLI Test Ops (`https://github.com/SpecLeft/spec-left/issues/20`) - Not started
 - Phase 6: Test Revision System (`https://github.com/SpecLeft/spec-left/issues/21`) - Not started

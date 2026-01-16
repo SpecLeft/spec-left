@@ -1,99 +1,109 @@
-"""Decorator and context manager for SpecLeft test metadata and step tracking."""
+"""SpecLeft Decorators.
+
+Provides the @specleft decorator and step() context manager for test functions.
+"""
 
 from __future__ import annotations
 
 import functools
 import inspect
 import threading
-from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, TypeVar, cast
+from typing import Any, Callable, Generator, Optional, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass
 class StepResult:
-    """Result of a test step execution."""
+    """Result of a single test step execution."""
 
     description: str
-    status: str  # "passed", "failed", "skipped"
-    start_time: datetime
-    end_time: datetime | None = None
-    error: str | None = None
+    status: str = "passed"
+    start_time: datetime = field(default_factory=datetime.now)
+    end_time: Optional[datetime] = None
+    error: Optional[str] = None
+    skipped_reason: Optional[str] = None
+
+    @property
+    def duration(self) -> float:
+        """Return step duration in seconds."""
+        if self.end_time:
+            return (self.end_time - self.start_time).total_seconds()
+        return 0.0
 
 
-# Thread-local storage for current test context
 _test_context = threading.local()
 
 
-def get_current_steps() -> list[StepResult]:
-    """Get the list of steps for the current test.
+def _get_context() -> dict[str, Any]:
+    if not hasattr(_test_context, "data"):
+        _test_context.data = {
+            "steps": [],
+            "feature_id": None,
+            "scenario_id": None,
+            "in_specleft_test": False,
+        }
+    return _test_context.data
 
-    Returns:
-        List of StepResult objects for the current test execution.
-    """
-    if not hasattr(_test_context, "steps"):
-        _test_context.steps = []
-    return cast(list[StepResult], _test_context.steps)
+
+def _reset_context() -> None:
+    _test_context.data = {
+        "steps": [],
+        "feature_id": None,
+        "scenario_id": None,
+        "in_specleft_test": False,
+    }
+
+
+def get_current_steps() -> list[StepResult]:
+    """Return current step results for this test execution."""
+    ctx = _get_context()
+    if "steps" not in ctx:
+        ctx["steps"] = []
+    return ctx["steps"]
 
 
 def clear_steps() -> None:
-    """Clear the steps for the current test context."""
-    _test_context.steps = []
+    """Clear current step results for this test execution."""
+    _get_context()["steps"] = []
+
+
+def get_current_metadata() -> dict[str, Optional[str]]:
+    """Return current feature/scenario metadata."""
+    ctx = _get_context()
+    return {
+        "feature_id": ctx.get("feature_id"),
+        "scenario_id": ctx.get("scenario_id"),
+    }
 
 
 def is_in_specleft_test() -> bool:
-    """Check if currently executing within a @specleft decorated test.
-
-    Returns:
-        True if inside a @specleft test, False otherwise.
-    """
-    return getattr(_test_context, "in_specleft_test", False)
+    """Return True when inside a @specleft test."""
+    return bool(_get_context().get("in_specleft_test", False))
 
 
-def _set_in_specleft_test(value: bool) -> None:
-    """Set the in_specleft_test flag.
-
-    Args:
-        value: Whether we are inside a @specleft test.
-    """
-    _test_context.in_specleft_test = value
-
-
-class _SpecLeftDecorator:
-    """Decorator class that also exposes the step context manager."""
+class SpecleftDecorator:
+    """Main decorator class for marking tests with SpecLeft metadata."""
 
     def __call__(self, feature_id: str, scenario_id: str) -> Callable[[F], F]:
-        """Decorator to mark tests with SpecLeft metadata.
-
-        Args:
-            feature_id: The feature ID (e.g., "AUTH-001").
-            scenario_id: The scenario ID (e.g., "login-success").
-
-        Returns:
-            Decorated function with metadata attached.
-        """
-
         def decorator(func: F) -> F:
             func._specleft_feature_id = feature_id  # type: ignore[attr-defined]
             func._specleft_scenario_id = scenario_id  # type: ignore[attr-defined]
 
             @functools.wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
-                # Initialize step collection for this test
-                clear_steps()
-                _set_in_specleft_test(True)
+                _reset_context()
+                ctx = _get_context()
+                ctx["feature_id"] = feature_id
+                ctx["scenario_id"] = scenario_id
+                ctx["in_specleft_test"] = True
                 try:
                     return func(*args, **kwargs)
                 finally:
-                    _set_in_specleft_test(False)
-
-            # Copy metadata to wrapper
-            wrapper._specleft_feature_id = feature_id  # type: ignore[attr-defined]
-            wrapper._specleft_scenario_id = scenario_id  # type: ignore[attr-defined]
+                    ctx["in_specleft_test"] = False
 
             return wrapper  # type: ignore[return-value]
 
@@ -101,112 +111,85 @@ class _SpecLeftDecorator:
 
     @staticmethod
     @contextmanager
-    def step(description: str) -> Generator[StepResult, None, None]:
-        """Context manager for recording test steps.
+    def step(
+        description: str,
+        skip: bool = False,
+        reason: Optional[str] = None,
+    ) -> Generator[None, None, None]:
+        """Context manager for test steps."""
+        ctx = _get_context()
+        step_result = StepResult(description=description, start_time=datetime.now())
 
-        Args:
-            description: Description of the step (supports f-strings).
-
-        Yields:
-            StepResult object that will be populated with timing and status.
-
-        Example:
-            with specleft.step("Given user has valid credentials"):
-                # test code here
-                pass
-
-            with specleft.step(f"When user logs in with '{username}'"):
-                # dynamic description
-                pass
-        """
-        step_result = StepResult(
-            description=description,
-            status="passed",
-            start_time=datetime.now(),
-        )
+        if skip:
+            step_result.status = "skipped"
+            step_result.skipped_reason = reason or "Step marked as skip"
+            step_result.end_time = datetime.now()
+            ctx["steps"].append(step_result)
+            yield
+            return
 
         try:
-            yield step_result
+            yield
             step_result.status = "passed"
-        except Exception as e:
+        except Exception as exc:
             step_result.status = "failed"
-            step_result.error = str(e)
+            step_result.error = str(exc)
             raise
         finally:
             step_result.end_time = datetime.now()
-            get_current_steps().append(step_result)
+            ctx["steps"].append(step_result)
 
+    @staticmethod
+    def reusable_step(description: str) -> Callable[[F], F]:
+        """Decorator for creating reusable step functions."""
 
-# Module-level instance for use as decorator
-specleft = _SpecLeftDecorator()
-
-# Also expose step as module-level function for convenience
-step = specleft.step
-
-
-def reusable_step(description: str) -> Callable[[F], F]:
-    """Decorator for reusable step functions that are automatically traced.
-
-    When a function decorated with @reusable_step is called from within a
-    @specleft decorated test, it will automatically be recorded as a step.
-    When called outside of a @specleft test, the function executes normally
-    without any tracing overhead.
-
-    The description supports parameter interpolation using {param_name} syntax.
-    Parameter values are substituted from the function's actual arguments.
-
-    Args:
-        description: Step description with optional {param_name} placeholders.
-
-    Returns:
-        Decorator function that wraps the original function.
-
-    Example:
-        @reusable_step("User logs in with {username}")
-        def login_user(username: str, password: str):
-            browser.get("/login")
-            browser.find("#username").send_keys(username)
-            browser.find("#password").send_keys(password)
-            browser.find("#login-btn").click()
-
-        @specleft(feature_id="AUTH-001", scenario_id="login-success")
-        def test_login():
-            # This call is automatically traced as:
-            # "User logs in with user@example.com"
-            login_user("user@example.com", "SecurePass123!")
-            assert browser.current_url == "/dashboard"
-    """
-
-    def decorator(func: F) -> F:
-        # Store the step description on the function for introspection
-        func._specleft_step_description = description  # type: ignore[attr-defined]
-
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # Only trace if called from within a @specleft test
-            if is_in_specleft_test():
-                # Interpolate parameters into description
-                sig = inspect.signature(func)
+        def decorator(func: F) -> F:
+            @functools.wraps(func)
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 try:
-                    bound_args = sig.bind(*args, **kwargs)
-                    bound_args.apply_defaults()
-
-                    # Format description with actual parameter values
-                    formatted_desc = description.format(**bound_args.arguments)
-                except (KeyError, ValueError, TypeError):
-                    # If interpolation fails, use original description
+                    sig = inspect.signature(func)
+                    bound = sig.bind(*args, **kwargs)
+                    bound.apply_defaults()
+                    formatted_desc = description.format(**bound.arguments)
+                except (KeyError, IndexError, ValueError, TypeError):
                     formatted_desc = description
 
-                # Use step context manager to record execution
-                with step(formatted_desc):
-                    return func(*args, **kwargs)
-            else:
-                # Called outside @specleft test, just execute normally
-                return func(*args, **kwargs)
+                ctx = _get_context()
+                step_result = StepResult(
+                    description=formatted_desc, start_time=datetime.now()
+                )
 
-        # Copy the step description to the wrapper
-        wrapper._specleft_step_description = description  # type: ignore[attr-defined]
+                try:
+                    result = func(*args, **kwargs)
+                    step_result.status = "passed"
+                    return result
+                except Exception as exc:
+                    step_result.status = "failed"
+                    step_result.error = str(exc)
+                    raise
+                finally:
+                    step_result.end_time = datetime.now()
+                    ctx["steps"].append(step_result)
 
-        return wrapper  # type: ignore[return-value]
+            wrapper._specleft_reusable_step = True  # type: ignore[attr-defined]
+            wrapper._specleft_step_description = description  # type: ignore[attr-defined]
+            return wrapper  # type: ignore[return-value]
 
-    return decorator
+        return decorator
+
+
+specleft = SpecleftDecorator()
+step = specleft.step
+reusable_step = specleft.reusable_step
+
+
+__all__ = [
+    "StepResult",
+    "clear_steps",
+    "get_current_metadata",
+    "get_current_steps",
+    "is_in_specleft_test",
+    "reusable_step",
+    "specleft",
+    "step",
+]
