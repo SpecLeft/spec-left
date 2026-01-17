@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from specleft.spec_differ import StepDiff
-from specleft.test_revisor import TestFunctionRevisor
+from specleft.skeleton_revisor import TestFunctionRevisor
 
 
 def _build_source(steps: list[str]) -> str:
@@ -35,7 +35,7 @@ def test_revisor_adds_step() -> None:
 
 
 def test_revisor_skips_removed_step() -> None:
-    source = _build_source(["Given one", "When two"])
+    source = _build_source(["Given one", "When two", "Then three"])
     revisor = TestFunctionRevisor(source)
     plan = revisor.build_revision_plan(
         "login-success",
@@ -43,9 +43,7 @@ def test_revisor_skips_removed_step() -> None:
     )
 
     updated = revisor.revise_test_file(plan)
-
-    assert "skip=True" in updated
-    assert "Removed from spec" in updated
+    assert 'with specleft.step("When two", skip=True, reason="Removed from spec"):' in updated
 
 
 def test_revisor_marks_modified_step() -> None:
@@ -67,6 +65,7 @@ def test_revisor_marks_modified_step() -> None:
 
     assert "Modified in spec" in updated
     assert "When two" in updated
+    assert "When two updated" in updated
 
 
 def test_revisor_missing_scenario_returns_original() -> None:
@@ -80,3 +79,23 @@ def test_revisor_missing_scenario_returns_original() -> None:
     updated = revisor.revise_test_file(plan)
 
     assert updated == source
+
+
+def test_revisor_inserts_condition_in_middle() -> None:
+    source = _build_source(["Given one", "When two", "Then three"])
+    revisor = TestFunctionRevisor(source)
+    plan = revisor.build_revision_plan(
+        "login-success",
+        [StepDiff(type="added", step_description="And four", new_index=1)],
+    )
+
+    updated = revisor.revise_test_file(plan)
+
+    lines = updated.splitlines()
+    for index, line in enumerate(lines):
+        if 'with specleft.step("' in line:
+            next_index = index + 1
+            while next_index < len(lines) and not lines[next_index].strip():
+                next_index += 1
+            assert next_index < len(lines)
+            assert lines[next_index].strip().startswith("pass")

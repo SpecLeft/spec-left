@@ -67,6 +67,10 @@ Options:
 
 Synchronize tests with spec changes.
 
+This will add/modify/skip steps within the existing test.
+
+*Note: Test steps will never be removed*
+
 ```bash
 specleft test sync [OPTIONS]
 

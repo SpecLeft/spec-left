@@ -13,7 +13,7 @@ from specleft.schema import (
     StorySpec,
 )
 from specleft.spec_differ import SpecDiffer, StepDiff
-from specleft.test_revisor import RevisionPlan, TestFunctionRevisor
+from specleft.skeleton_revisor import RevisionPlan, TestFunctionRevisor
 
 __version__ = "0.2.0"
 __all__ = [

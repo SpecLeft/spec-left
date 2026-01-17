@@ -5,6 +5,7 @@ Parses feature specifications from Markdown files with YAML frontmatter.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -181,7 +182,7 @@ class SpecParser:
         return " ".join(description_lines) if description_lines else None
 
     def _parse_steps(self, content: str) -> list[SpecStep]:
-        """Parse BDD steps from Markdown content."""
+        """Parse Gherkin steps from Markdown content."""
         steps: list[SpecStep] = []
 
         steps_match = re.search(r"## Steps\s*\n(.*?)(?=\n##|\Z)", content, re.DOTALL)

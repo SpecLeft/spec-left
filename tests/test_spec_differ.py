@@ -63,7 +63,7 @@ def test_diff_scenario_modified_step() -> None:
     )
 
 
-def test_diff_scenario_reordered_steps_are_add_remove() -> None:
+def test_diff_scenario_reordered_steps_are_moves() -> None:
     spec = _build_scenario(["alpha", "beta", "gamma"])
     differ = SpecDiffer()
 
@@ -72,5 +72,12 @@ def test_diff_scenario_reordered_steps_are_add_remove() -> None:
         ["Given beta", "Given alpha", "Given gamma"],
     )
 
-    assert StepDiff(type="removed", step_description="Given beta", old_index=0) in diffs
-    assert StepDiff(type="added", step_description="Given beta", new_index=1) in diffs
+    assert (
+        StepDiff(
+            type="moved",
+            step_description="Given beta",
+            new_index=1,
+            old_index=0,
+        )
+        in diffs
+    )

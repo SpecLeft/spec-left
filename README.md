@@ -198,6 +198,8 @@ def test_login_success(auth_service):
 
 Full command reference: `docs/cli-reference.md`.
 
+CLI alias: `spec` (same commands as `specleft`).
+
 ### `specleft test skeleton`
 
 Generate skeleton test files from Markdown specs.

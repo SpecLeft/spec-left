@@ -64,7 +64,7 @@ def test() -> None:
     is_flag=True,
     help="Generate all tests in a single file (test_generated.py).",
 )
-def test_skeleton(features_dir: str, output_dir: str, single_file: bool) -> None:
+def skeleton(features_dir: str, output_dir: str, single_file: bool) -> None:
     """Generate skeleton test files from Markdown feature specs.
 
     Reads the features directory specification and generates pytest test files
@@ -152,7 +152,7 @@ def test_skeleton(features_dir: str, output_dir: str, single_file: bool) -> None
     is_flag=True,
     help="Open the report in the default web browser.",
 )
-def test_report(results_file: str | None, output: str, open_browser: bool) -> None:
+def report(results_file: str | None, output: str, open_browser: bool) -> None:
     """Generate HTML report from test results.
 
     Reads the test results JSON and generates a static HTML report
@@ -239,10 +239,10 @@ def test_report(results_file: str | None, output: str, open_browser: bool) -> No
     default=True,
     help="Backup files before modifying.",
 )
-def test_sync(features_dir: str, tests_dir: str, dry_run: bool, backup: bool) -> None:
+def sync(features_dir: str, tests_dir: str, dry_run: bool, backup: bool) -> None:
     """Synchronize tests with spec changes."""
     from specleft.spec_differ import SpecDiffer
-    from specleft.test_revisor import TestFunctionRevisor
+    from specleft.skeleton_revisor import TestFunctionRevisor
 
     try:
         config = load_specs_directory(features_dir)

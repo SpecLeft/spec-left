@@ -5,6 +5,8 @@ PROGRESS.md
 *report.html
 .llm/
 AGENTS*.md
+*.bak
+examples/tests/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -50,8 +50,8 @@ def test_{{ scenario.scenario_id | snake_case }}({% if scenario.test_data %}{{ s
 {% endif %}
     """
 {% for step in scenario.steps %}
-    with specleft.step("{{ step.type.value | capitalize }} {{ step.description }}"):
-        pass  # TODO: Implement step logic
+    with specleft.step({% if '{' in step.description or '}' in step.description %}f{% endif %}{{ (step.type.value | capitalize ~ ' ' ~ step.description) | repr }}):
+        assert not True  # TODO: Skeleton step - Implement logic here
 
 {% endfor %}
 

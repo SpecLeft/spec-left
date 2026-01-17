@@ -29,6 +29,7 @@ dev = [
 
 [project.scripts]
 specleft = "specleft.cli.main:cli"
+spec = "specleft.cli.main:cli"
 
 [project.entry-points.pytest11]
 specleft = "specleft.pytest_plugin"
