@@ -215,6 +215,7 @@ def report(results_file: str | None, output: str, open_browser: bool) -> None:
     if open_browser:
         webbrowser.open(f"file://{output_path.absolute()}")
 
+
 # FEATURES commands group
 @cli.group()
 def features() -> None:
