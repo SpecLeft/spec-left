@@ -141,6 +141,14 @@ We use **MyPy** for static type checking:
 mypy src/
 ```
 
+### Linting Shortcut
+
+Use Make commands to run lint
+```bash
+> make lint
+> make lint-fix
+```
+
 ### Code Style Summary
 
 - Use type hints for all function parameters and return values
