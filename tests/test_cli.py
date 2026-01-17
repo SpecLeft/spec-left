@@ -520,10 +520,10 @@ class TestFeaturesStatsCommand:
             result = runner.invoke(cli, ["features", "stats"])
             assert result.exit_code == 0
             # New format includes test coverage stats
-            assert "Test Coverage Stats:" in result.output
+            assert "Test Coverage Stats" in result.output
             assert "Pytest Tests:" in result.output
             assert "Total pytest tests discovered:" in result.output
-            assert "Tests with @specleft decorator:" in result.output
+            assert "Tests with @specleft:" in result.output
             # Specifications section
             assert "Specifications:" in result.output
             assert "Features: 1" in result.output

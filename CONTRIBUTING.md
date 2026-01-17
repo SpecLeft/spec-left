@@ -166,7 +166,7 @@ Use Make commands to run lint
 spec-left/
 ├── src/specleft/           # Main package source
 │   ├── __init__.py         # Public API exports
-│   ├── decorators.py       # @specleft and @reusable_step decorators
+│   ├── decorators.py       # @specleft and @shared_step decorators
 │   ├── schema.py           # Pydantic models for Markdown specs
 │   ├── pytest_plugin.py    # Pytest hooks integration
 │   ├── collector.py        # Result collection and JSON output
@@ -247,7 +247,7 @@ spec-left/
 - Reference issues and pull requests where appropriate
 
 Examples:
-- `Add reusable step decorator with parameter interpolation`
+- `Add shared step decorator with parameter interpolation`
 - `Fix auto-skip not working when specs are missing`
 - `Update README with CLI command examples`
 

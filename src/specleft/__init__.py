@@ -1,6 +1,6 @@
 """SpecLeft - Specification-driven test management for pytest."""
 
-from specleft.decorators import StepResult, reusable_step, specleft, step
+from specleft.decorators import StepResult, shared_step, specleft, step
 from specleft.schema import (
     ExecutionTime,
     FeatureSpec,
@@ -25,7 +25,7 @@ __all__ = [
     "StepResult",
     "StepType",
     "StorySpec",
-    "reusable_step",
+    "shared_step",
     "specleft",
     "step",
 ]

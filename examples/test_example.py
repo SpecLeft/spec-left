@@ -4,14 +4,14 @@ Example tests demonstrating SpecLeft SDK features.
 This file shows how to use:
 - @specleft decorator for test metadata
 - specleft.step() context manager for step tracking
-- @reusable_step decorator for reusable step methods
+- @shared_step decorator for shared step methods
 - Parameterized tests with test_data from specs
 """
 
 import re
 
 import pytest
-from specleft import reusable_step, specleft
+from specleft import shared_step, specleft
 
 # =============================================================================
 # Helper functions (simulating application code)
@@ -67,7 +67,7 @@ class AuthService:
 # =============================================================================
 
 
-@reusable_step("User logs in with username '{username}'")
+@shared_step("User logs in with username '{username}'")
 def login_user(auth_service: AuthService, username: str, password: str) -> bool:
     """Reusable step method for logging in a user.
 
@@ -85,7 +85,7 @@ def login_user(auth_service: AuthService, username: str, password: str) -> bool:
     return auth_service.login(username, password)
 
 
-@reusable_step("Verify user '{username}' is authenticated")
+@shared_step("Verify user '{username}' is authenticated")
 def verify_authenticated(auth_service: AuthService, username: str) -> None:
     """Reusable step to verify a user is authenticated.
 
@@ -101,7 +101,7 @@ def verify_authenticated(auth_service: AuthService, username: str) -> None:
     ), f"User '{username}' is not authenticated"
 
 
-@reusable_step("Verify session exists for '{username}'")
+@shared_step("Verify session exists for '{username}'")
 def verify_session_exists(auth_service: AuthService, username: str) -> None:
     """Reusable step to verify a session exists.
 
@@ -145,7 +145,7 @@ def test_login_success(auth_service: AuthService, username: str, password: str) 
 
     This test demonstrates:
     - Parameterized tests with @pytest.mark.parametrize
-    - Using @reusable_step decorated functions for automatic step tracing
+    - Using @shared_step decorated functions for automatic step tracing
     - Parameter interpolation in step descriptions
 
     Priority: critical
@@ -155,13 +155,13 @@ def test_login_success(auth_service: AuthService, username: str, password: str) 
         assert username in auth_service.valid_users
         assert auth_service.valid_users[username] == password
 
-    # Using reusable step - automatically traced with parameter values
+    # Using shared step - automatically traced with parameter values
     result = login_user(auth_service, username, password)
 
     with specleft.step("Then user is authenticated and session is created"):
         assert result is True
 
-    # More reusable steps for verification
+    # More shared steps for verification
     verify_authenticated(auth_service, username)
     verify_session_exists(auth_service, username)
 

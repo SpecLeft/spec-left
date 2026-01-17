@@ -698,19 +698,26 @@ def features_stats(features_dir: str, tests_dir: str) -> None:
     test_discovery = _discover_pytest_tests(tests_dir)
 
     # Output stats
-    click.echo("Test Coverage Stats:")
+    click.echo("")
+    click.secho("Test Coverage Stats", fg="cyan", bold=True)
+    click.echo("")
+
+    # Directories section
+    click.secho("Target Directories:", fg="cyan")
+    click.echo(f"  Features Directory: {features_dir}/")
+    click.secho(f"  Tests Directory: {tests_dir}/")
     click.echo("")
 
     # Pytest tests section
-    click.echo("Pytest Tests:")
+    click.secho("Pytest Tests:", fg="cyan")
     if test_discovery.error:
         click.secho(f"  Warning: {test_discovery.error}", fg="yellow")
     click.echo(f"  Total pytest tests discovered: {test_discovery.total_tests}")
-    click.echo(f"  Tests with @specleft decorator: {test_discovery.specleft_tests}")
+    click.echo(f"  Tests with @specleft: {test_discovery.specleft_tests}")
     click.echo("")
 
     # Specs section
-    click.echo("Specifications:")
+    click.secho("Specifications:", fg="cyan")
     if stats:
         click.echo(f"  Features: {stats.feature_count}")
         click.echo(f"  Stories: {stats.story_count}")
@@ -724,7 +731,7 @@ def features_stats(features_dir: str, tests_dir: str) -> None:
     click.echo("")
 
     # Coverage section
-    click.echo("Coverage:")
+    click.secho("Coverage:", fg="cyan")
     if stats and stats.scenario_count > 0:
         scenarios_with_tests = spec_scenario_ids.intersection(
             test_discovery.specleft_scenario_ids
@@ -737,13 +744,14 @@ def features_stats(features_dir: str, tests_dir: str) -> None:
             if stats.scenario_count > 0
             else 0
         )
+        colour = "green" if coverage_pct >= 80 else "yellow" if coverage_pct >= 50 else "red"
         click.echo(f"  Scenarios with tests: {len(scenarios_with_tests)}")
         click.echo(f"  Scenarios without tests: {len(scenarios_without_tests)}")
-        click.echo(f"  Coverage: {coverage_pct:.1f}%")
+        click.secho(f"  Coverage: {coverage_pct:.1f}%", fg=colour)
 
         if scenarios_without_tests:
             click.echo("")
-            click.echo("Scenarios without tests:")
+            click.secho("Scenarios without tests:", fg="cyan")
             for scenario_id in sorted(scenarios_without_tests):
                 click.echo(f"  - {scenario_id}")
     elif stats:

@@ -153,8 +153,8 @@ class SpecleftDecorator:
             ctx["steps"].append(step_result)
 
     @staticmethod
-    def reusable_step(description: str) -> Callable[[F], F]:
-        """Decorator for creating reusable step functions."""
+    def shared_step(description: str) -> Callable[[F], F]:
+        """Decorator for creating shared step functions."""
 
         def decorator(func: F) -> F:
             @functools.wraps(func)
@@ -193,7 +193,7 @@ class SpecleftDecorator:
 
 specleft = SpecleftDecorator()
 step = specleft.step
-reusable_step = specleft.reusable_step
+shared_step = specleft.shared_step
 
 
 __all__ = [
@@ -202,7 +202,7 @@ __all__ = [
     "get_current_metadata",
     "get_current_steps",
     "is_in_specleft_test",
-    "reusable_step",
+    "shared_step",
     "specleft",
     "step",
 ]

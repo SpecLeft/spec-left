@@ -15,7 +15,7 @@ from specleft.decorators import (
     get_current_metadata,
     get_current_steps,
     is_in_specleft_test,
-    reusable_step,
+    shared_step,
     specleft,
     step,
 )
@@ -325,16 +325,16 @@ class TestStepContextManager:
 
 
 class TestReusableStepDecorator:
-    """Tests for @reusable_step decorator."""
+    """Tests for @shared_step decorator."""
 
     def setup_method(self) -> None:
         clear_steps()
         _get_context()["in_specleft_test"] = False
 
     def test_reusable_step_stores_description(self) -> None:
-        """Test that reusable_step stores description on function."""
+        """Test that shared_step stores description on function."""
 
-        @reusable_step("User performs action")
+        @shared_step("User performs action")
         def user_action() -> None:
             pass
 
@@ -342,9 +342,9 @@ class TestReusableStepDecorator:
         assert user_action._specleft_step_description == "User performs action"
 
     def test_reusable_step_traced_inside_specleft_test(self) -> None:
-        """Test that reusable step traces inside @specleft tests."""
+        """Test that shared step traces inside @specleft tests."""
 
-        @reusable_step("User clicks button")
+        @shared_step("User clicks button")
         def click_button() -> str:
             return "clicked"
 
@@ -360,9 +360,9 @@ class TestReusableStepDecorator:
         assert steps[0].description == "User clicks button"
 
     def test_reusable_step_parameter_interpolation(self) -> None:
-        """Test parameter interpolation in reusable step description."""
+        """Test parameter interpolation in shared step description."""
 
-        @reusable_step("User logs in with {username}")
+        @shared_step("User logs in with {username}")
         def login(username: str, password: str) -> bool:
             return True
 
@@ -379,7 +379,7 @@ class TestReusableStepDecorator:
     def test_reusable_step_multiple_parameters(self) -> None:
         """Test interpolation with multiple parameters."""
 
-        @reusable_step("Add {a} and {b} expecting {expected}")
+        @shared_step("Add {a} and {b} expecting {expected}")
         def add_numbers(a: int, b: int, expected: int) -> bool:
             return a + b == expected
 
@@ -395,7 +395,7 @@ class TestReusableStepDecorator:
     def test_reusable_step_with_default_parameters(self) -> None:
         """Test interpolation with default parameters."""
 
-        @reusable_step("Navigate to {url} with timeout {timeout}")
+        @shared_step("Navigate to {url} with timeout {timeout}")
         def navigate(url: str, timeout: int = 30) -> None:
             pass
 
@@ -411,7 +411,7 @@ class TestReusableStepDecorator:
     def test_reusable_step_invalid_interpolation_uses_original(self) -> None:
         """Test that invalid interpolation falls back to original description."""
 
-        @reusable_step("User does {nonexistent_param}")
+        @shared_step("User does {nonexistent_param}")
         def do_action(value: str) -> None:
             pass
 
@@ -425,9 +425,9 @@ class TestReusableStepDecorator:
         assert steps[0].description == "User does {nonexistent_param}"
 
     def test_reusable_step_preserves_function_name(self) -> None:
-        """Test that reusable_step preserves original function name."""
+        """Test that shared_step preserves original function name."""
 
-        @reusable_step("Perform action")
+        @shared_step("Perform action")
         def perform_important_action() -> None:
             """Important action docstring."""
             pass
@@ -436,9 +436,9 @@ class TestReusableStepDecorator:
         assert perform_important_action.__doc__ == "Important action docstring."
 
     def test_reusable_step_returns_value(self) -> None:
-        """Test that reusable step returns function's return value."""
+        """Test that shared step returns function's return value."""
 
-        @reusable_step("Get user data")
+        @shared_step("Get user data")
         def get_user() -> dict:
             return {"id": 1, "name": "Test"}
 
@@ -451,9 +451,9 @@ class TestReusableStepDecorator:
         assert result == {"id": 1, "name": "Test"}
 
     def test_reusable_step_propagates_exceptions(self) -> None:
-        """Test that reusable step propagates exceptions."""
+        """Test that shared step propagates exceptions."""
 
-        @reusable_step("Failing action")
+        @shared_step("Failing action")
         def failing_action() -> None:
             raise RuntimeError("Action failed")
 
@@ -470,13 +470,13 @@ class TestReusableStepDecorator:
         assert "Action failed" in steps[0].error
 
     def test_multiple_reusable_steps_in_test(self) -> None:
-        """Test multiple reusable steps in one test."""
+        """Test multiple shared steps in one test."""
 
-        @reusable_step("Step A with {value}")
+        @shared_step("Step A with {value}")
         def step_a(value: str) -> None:
             pass
 
-        @reusable_step("Step B with {value}")
+        @shared_step("Step B with {value}")
         def step_b(value: str) -> None:
             pass
 
@@ -553,9 +553,9 @@ class TestCombinedUsage:
         clear_steps()
 
     def test_manual_and_reusable_steps_together(self) -> None:
-        """Test mixing manual step() with reusable_step()."""
+        """Test mixing manual step() with shared_step()."""
 
-        @reusable_step("Setup user {username}")
+        @shared_step("Setup user {username}")
         def setup_user(username: str) -> None:
             pass
 
@@ -576,18 +576,18 @@ class TestCombinedUsage:
         assert steps[2].description == "Then verify results"
 
     def test_reusable_step_called_from_another_reusable_step(self) -> None:
-        """Test reusable step calling another reusable step."""
+        """Test shared step calling another shared step."""
 
-        @reusable_step("Low level action: {action}")
+        @shared_step("Low level action: {action}")
         def low_level(action: str) -> None:
             pass
 
-        @reusable_step("High level workflow")
+        @shared_step("High level workflow")
         def high_level() -> None:
             low_level("step 1")
             low_level("step 2")
 
-        @specleft(feature_id="NESTED-001", scenario_id="nested-reusable")
+        @specleft(feature_id="NESTED-001", scenario_id="nested-shared")
         def test_nested() -> None:
             high_level()
 
