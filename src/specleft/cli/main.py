@@ -479,7 +479,7 @@ def skeleton(features_dir: str, output_dir: str, single_file: bool, skip_preview
             click.secho(f"Skipped existing file: {skipped_path}", fg="yellow")
 
     if not plan_result.plans:
-        click.secho("No new skeleton tests to generate.", fg="yellow")
+        click.secho("No new skeleton tests to generate.", fg="magenta")
         return
 
     summary = _summarize_skeleton_plans(plan_result.plans)
@@ -489,7 +489,7 @@ def skeleton(features_dir: str, output_dir: str, single_file: bool, skip_preview
     click.echo(f"  Stories: {summary.story_count}")
     click.echo(f"  Scenarios: {summary.scenario_count}")
     click.echo(f"  Files to create: {len(summary.output_paths)}")
-
+    click.echo("")
     click.secho("Planned test files:", fg="cyan")
     for output_path in summary.output_paths:
         click.echo(f"    - {output_path}")
@@ -616,7 +616,9 @@ def features_validate(features_dir: str) -> None:
     try:
         config = load_specs_directory(features_dir)
         stats = collect_spec_stats(config)
-        click.secho(f"✓ Features directory '{features_dir}/' is valid", fg="green")
+        click.secho(f"✅ Features directory '{features_dir}/' is valid", bold=True)
+        click.echo("")
+        click.secho("Summary:", fg="cyan")
         click.echo(f"  Features: {stats.feature_count}")
         click.echo(f"  Stories: {stats.story_count}")
         click.echo(f"  Scenarios: {stats.scenario_count}")
