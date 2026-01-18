@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spec-left"
-version = "0.1.0"
+name = "specleft"
+version = "0.2.0"
 description = "Code-driven test case management for pytest"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "click>=8.0.0",
     "jinja2>=3.0.0",
+    "python-frontmatter>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -28,14 +29,15 @@ dev = [
 
 [project.scripts]
 specleft = "specleft.cli.main:cli"
+spec = "specleft.cli.main:cli"
 
 [project.entry-points.pytest11]
 specleft = "specleft.pytest_plugin"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/spec-left"
-Documentation = "https://spec-left.readthedocs.io"
-Repository = "https://github.com/yourusername/spec-left"
+Homepage = "https://github.com/SpecLeft/spec-left"
+Documentation = "https://github.com/SpecLeft/spec-left"
+Repository = "https://github.com/SpecLeft/spec-left"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -116,12 +118,16 @@ module = "tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+[[tool.mypy.overrides]]
+module = "frontmatter"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src/shiftleft",
+    "--cov=src/specleft",
     "--cov-report=term-missing:skip-covered",
     "--cov-report=html",
     "--cov-report=xml",
@@ -131,6 +137,14 @@ markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
+
+# SpecLeft filter options (all repeatable)
+specleft_features_dir = "features"
+specleft_output_dir = ".specleft"
+specleft_tag = []
+specleft_priority = []
+specleft_feature = []
+specleft_scenario = []
 
 [tool.coverage.run]
 source = ["src"]

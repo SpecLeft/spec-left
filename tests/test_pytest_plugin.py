@@ -3,10 +3,9 @@
 Tests cover:
 - Hook execution order
 - Metadata collection from @specleft decorated tests
-- Auto-skip for removed scenarios
 - Runtime marker injection from tags
 - Thread-local storage handling
-- Handling of missing features.json
+- Handling of missing specs
 """
 
 from __future__ import annotations
@@ -17,88 +16,127 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+
+def _write_specs_tree(base_dir: Path) -> Path:
+    features_dir = base_dir / "features"
+    auth_story_dir = features_dir / "auth" / "login"
+    parse_story_dir = features_dir / "parse" / "units"
+    auth_story_dir.mkdir(parents=True, exist_ok=True)
+    parse_story_dir.mkdir(parents=True, exist_ok=True)
+
+    (features_dir / "auth" / "_feature.md").write_text(
+        """
+---
+feature_id: auth
+priority: critical
+tags: [core]
+---
+
+# Feature: User Authentication
+""".strip()
+    )
+    (auth_story_dir / "_story.md").write_text(
+        """
+---
+story_id: login
+priority: high
+tags: [auth-flow]
+---
+
+# Story: Login
+""".strip()
+    )
+    (auth_story_dir / "login_success.md").write_text(
+        """
+---
+scenario_id: login-success
+priority: high
+tags: [smoke, critical, auth-flow]
+execution_time: fast
+---
+
+# Scenario: Successful login
+
+## Steps
+- **Given** user has valid credentials
+- **When** user logs in
+- **Then** user sees dashboard
+""".strip()
+    )
+    (auth_story_dir / "login_failure.md").write_text(
+        """
+---
+scenario_id: login-failure
+priority: medium
+tags: [regression, negative]
+execution_time: fast
+---
+
+# Scenario: Failed login
+
+## Steps
+- **Given** user has invalid credentials
+- **When** user tries to log in
+- **Then** user sees error message
+""".strip()
+    )
+
+    (features_dir / "parse" / "_feature.md").write_text(
+        """
+---
+feature_id: parse
+priority: high
+tags: [unit]
+---
+
+# Feature: Unit Parsing
+""".strip()
+    )
+    (parse_story_dir / "_story.md").write_text(
+        """
+---
+story_id: units
+priority: medium
+tags: [parsing]
+---
+
+# Story: Units
+""".strip()
+    )
+    (parse_story_dir / "extract_unit.md").write_text(
+        """
+---
+scenario_id: extract-unit
+priority: medium
+tags: [unit, parsing]
+execution_time: fast
+---
+
+# Scenario: Extract unit from string
+
+## Steps
+- **When** extracting unit
+- **Then** unit is correct
+""".strip()
+    )
+
+    return features_dir
+
+
 if TYPE_CHECKING:
     from pytest import Pytester
 
 
-# =============================================================================
-# Helper fixtures
-# =============================================================================
-
-
 @pytest.fixture
-def sample_features_json() -> dict:
-    """Return a sample features.json structure."""
-    return {
-        "version": "1.0",
-        "features": [
-            {
-                "id": "AUTH-001",
-                "name": "User Authentication",
-                "scenarios": [
-                    {
-                        "id": "login-success",
-                        "name": "Successful login",
-                        "tags": ["smoke", "critical", "auth-flow"],
-                        "steps": [
-                            {
-                                "type": "given",
-                                "description": "user has valid credentials",
-                            },
-                            {"type": "when", "description": "user logs in"},
-                            {"type": "then", "description": "user sees dashboard"},
-                        ],
-                    },
-                    {
-                        "id": "login-failure",
-                        "name": "Failed login",
-                        "tags": ["regression", "negative"],
-                        "steps": [
-                            {
-                                "type": "given",
-                                "description": "user has invalid credentials",
-                            },
-                            {"type": "when", "description": "user tries to log in"},
-                            {"type": "then", "description": "user sees error message"},
-                        ],
-                    },
-                ],
-            },
-            {
-                "id": "PARSE-001",
-                "name": "Unit Parsing",
-                "scenarios": [
-                    {
-                        "id": "extract-unit",
-                        "name": "Extract unit from string",
-                        "tags": ["unit", "parsing"],
-                        "steps": [
-                            {"type": "when", "description": "extracting unit"},
-                            {"type": "then", "description": "unit is correct"},
-                        ],
-                    },
-                ],
-            },
-        ],
-    }
+def create_specs_tree(pytester: Pytester) -> Path:
+    """Create a Markdown specs tree in the test directory."""
+    return _write_specs_tree(pytester.path)
 
 
-@pytest.fixture
-def create_features_json(pytester: Pytester, sample_features_json: dict):
-    """Create a features.json file in the test directory."""
-
-    def _create(features: dict | None = None) -> Path:
-        data = features if features is not None else sample_features_json
-        features_file = pytester.path / "features.json"
-        features_file.write_text(json.dumps(data, indent=2))
-        return features_file
-
-    return _create
-
-
-# =============================================================================
-# Test: pytest_configure hook
-# =============================================================================
+@pytest.fixture(autouse=True)
+def ensure_specs_tree(create_specs_tree: Path) -> None:
+    """Ensure a default specs tree exists for plugin tests."""
+    _ = create_specs_tree
 
 
 class TestPytestConfigure:
@@ -106,114 +144,28 @@ class TestPytestConfigure:
 
     def test_specleft_results_initialized(self, pytester: Pytester) -> None:
         """Test that _specleft_results is initialized on config."""
-        # We test by checking results are collected after tests run
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="TEST-001", scenario_id="test-scenario")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_dummy():
                 pass
             """
         )
-        # Create a minimal features.json
-        features = {
-            "version": "1.0",
-            "features": [
-                {
-                    "id": "TEST-001",
-                    "name": "Test",
-                    "scenarios": [
-                        {
-                            "id": "test-scenario",
-                            "name": "Test scenario",
-                            "steps": [{"type": "when", "description": "testing"}],
-                        },
-                    ],
-                },
-            ],
-        }
-        import json
-
-        (pytester.path / "features.json").write_text(json.dumps(features))
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
-        # Check that results were saved (which means _specleft_results was initialized)
-        result.stdout.fnmatch_lines(["*SpecLeft Test Results*"])
-
-    def test_specleft_marker_registered(self, pytester: Pytester) -> None:
-        """Test that specleft marker is registered."""
-        pytester.makepyfile(
-            """
-            import pytest
-
-            @pytest.mark.specleft
-            def test_with_marker():
-                pass
-            """
-        )
-        result = pytester.runpytest("--strict-markers")
-        result.assert_outcomes(passed=1)
-
-
-# =============================================================================
-# Test: Metadata collection
-# =============================================================================
-
-
-class TestMetadataCollection:
-    """Tests for metadata collection from @specleft decorated tests."""
-
-    def test_basic_metadata_collection(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that basic metadata is collected from @specleft tests."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_login():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(passed=1)
-
-    def test_parameterized_test_metadata(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test metadata collection for parameterized tests."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            import pytest
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            @pytest.mark.parametrize("username,password", [
-                ("user1", "pass1"),
-                ("user2", "pass2"),
-            ])
-            def test_login_param(username, password):
-                pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(passed=2)
 
     def test_metadata_stored_on_item(
-        self, pytester: Pytester, create_features_json
+        self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that metadata is stored on test items."""
-        create_features_json()
         pytester.makeconftest(
             """
             def pytest_runtest_setup(item):
                 if hasattr(item, '_specleft_metadata'):
                     metadata = item._specleft_metadata
-                    assert metadata['feature_id'] == 'AUTH-001'
+                    assert metadata['feature_id'] == 'auth'
                     assert metadata['scenario_id'] == 'login-success'
             """
         )
@@ -221,7 +173,7 @@ class TestMetadataCollection:
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
             """
@@ -230,285 +182,90 @@ class TestMetadataCollection:
         result.assert_outcomes(passed=1)
 
 
-# =============================================================================
-# Test: Auto-skip removed scenarios
-# =============================================================================
+class TestMissingSpecsDirectory:
+    """Tests for handling missing specs directories."""
 
-
-class TestAutoSkip:
-    """Tests for auto-skip functionality when scenarios are removed."""
-
-    def test_skip_orphaned_scenario(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that tests with removed scenarios are skipped."""
-        create_features_json()
+    def test_no_specs_directory_runs_all_tests(self, pytester: Pytester) -> None:
+        """Test that tests run without validation when specs are missing."""
+        features_dir = pytester.path / "features"
+        if features_dir.exists():
+            for path in features_dir.rglob("*"):
+                if path.is_file():
+                    path.unlink()
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="nonexistent-scenario")
-            def test_orphaned():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v", "-rs")  # -rs shows skip reasons
-        result.assert_outcomes(skipped=1)
-        # Check skip reason is in output (using -rs flag)
-        result.stdout.fnmatch_lines(
-            ["*nonexistent-scenario*not found in features.json*"]
-        )
-
-    def test_skip_orphaned_feature(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that tests with removed features are skipped."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="NONEXISTENT-001", scenario_id="login-success")
-            def test_orphaned():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(skipped=1)
-
-    def test_skip_reason_includes_identifiers(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that skip reason includes feature and scenario IDs."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="REMOVED-001", scenario_id="deleted-scenario")
-            def test_orphaned():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v", "-rs")
-        result.assert_outcomes(skipped=1)
-        result.stdout.fnmatch_lines(["*deleted-scenario*REMOVED-001*"])
-
-    def test_valid_scenario_not_skipped(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that valid scenarios are not skipped."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_valid():
-                pass
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-failure")
-            def test_also_valid():
-                pass
-
-            @specleft(feature_id="PARSE-001", scenario_id="extract-unit")
-            def test_another_valid():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(passed=3)
-
-    def test_mixed_valid_and_orphaned(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that valid and orphaned tests are handled correctly together."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_valid():
-                pass
-
-            @specleft(feature_id="AUTH-001", scenario_id="orphaned-scenario")
-            def test_orphaned():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(passed=1, skipped=1)
-
-
-# =============================================================================
-# Test: Missing features.json handling
-# =============================================================================
-
-
-class TestMissingFeaturesJson:
-    """Tests for handling missing features.json."""
-
-    def test_no_features_json_runs_all_tests(self, pytester: Pytester) -> None:
-        """Test that tests run without validation when features.json is missing."""
-        # Note: No features.json created
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="ANY-001", scenario_id="any-scenario")
+            @specleft(feature_id="any-feature", scenario_id="any-scenario")
             def test_without_validation():
                 pass
             """
         )
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
-
-    def test_warning_logged_without_features_json(self, pytester: Pytester) -> None:
-        """Test that a warning is logged when features.json is missing."""
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="ANY-001", scenario_id="any-scenario")
-            def test_without_validation():
-                pass
-            """
-        )
-        result = pytester.runpytest("-v", "--log-cli-level=WARNING")
-        result.assert_outcomes(passed=1)
-        # Warning should be in output (may be in different formats)
-
-
-# =============================================================================
-# Test: Runtime marker injection
-# =============================================================================
 
 
 class TestMarkerInjection:
     """Tests for runtime marker injection from scenario tags."""
 
     def test_markers_injected_from_tags(
-        self, pytester: Pytester, create_features_json
+        self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that markers are injected from scenario tags."""
-        create_features_json()
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
             """
         )
-        # Run only tests with 'smoke' marker (from tags)
-        result = pytester.runpytest("-v", "-m", "smoke")
+        result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_multiple_markers_injected(
-        self, pytester: Pytester, create_features_json
+        result = pytester.runpytest("-v", "--specleft-tag", "smoke")
+        result.assert_outcomes(passed=1)
+
+        result = pytester.runpytest("-v", "--specleft-tag", "critical")
+        result.assert_outcomes(passed=1)
+
+        result = pytester.runpytest("-v", "--specleft-tag", "missing")
+        result.assert_outcomes(skipped=1)
+
+    def test_priority_marker_injected(
+        self, pytester: Pytester, create_specs_tree
     ) -> None:
-        """Test that multiple markers are injected from multiple tags."""
-        create_features_json()
+        """Test that priority markers are injected from spec priority."""
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
             """
         )
-        # Test with 'critical' marker
-        result = pytester.runpytest("-v", "-m", "critical")
+        result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_marker_with_hyphen_sanitized(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that hyphens in tags are converted to underscores."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_login():
-                pass
-            """
-        )
-        # 'auth-flow' tag becomes 'auth_flow' marker
-        result = pytester.runpytest("-v", "-m", "auth_flow")
+        result = pytester.runpytest("-v", "--specleft-priority", "high")
         result.assert_outcomes(passed=1)
 
-    def test_filter_by_injected_marker(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test filtering tests by injected markers."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_smoke_critical():
-                pass
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-failure")
-            def test_regression():
-                pass
-
-            @specleft(feature_id="PARSE-001", scenario_id="extract-unit")
-            def test_unit():
-                pass
-            """
-        )
-        # Run only regression tests
-        result = pytester.runpytest("-v", "-m", "regression")
-        result.assert_outcomes(passed=1)
-
-        # Run only smoke tests
-        result = pytester.runpytest("-v", "-m", "smoke")
-        result.assert_outcomes(passed=1)
-
-    def test_exclude_by_marker(self, pytester: Pytester, create_features_json) -> None:
-        """Test excluding tests by marker."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_smoke():
-                pass
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-failure")
-            def test_regression():
-                pass
-            """
-        )
-        # Run tests NOT marked as smoke
-        result = pytester.runpytest("-v", "-m", "not smoke")
-        result.assert_outcomes(passed=1)
-
-
-# =============================================================================
-# Test: Step collection
-# =============================================================================
+        result = pytester.runpytest("-v", "--specleft-priority", "critical")
+        result.assert_outcomes(skipped=1)
 
 
 class TestStepCollection:
     """Tests for step collection during test execution."""
 
-    def test_steps_collected(self, pytester: Pytester, create_features_json) -> None:
+    def test_steps_collected(self, pytester: Pytester, create_specs_tree) -> None:
         """Test that steps are collected during test execution."""
-        create_features_json()
         pytester.makepyfile(
             """
             from specleft import specleft, step
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_with_steps():
                 with step("Given user has credentials"):
                     pass
@@ -521,47 +278,17 @@ class TestStepCollection:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_failed_step_captured(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
-        """Test that failed steps are captured."""
-        create_features_json()
-        pytester.makepyfile(
-            """
-            from specleft import specleft, step
-
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_with_failing_step():
-                with step("Given user has credentials"):
-                    pass
-                with step("When user logs in"):
-                    assert False, "Login failed"
-                with step("Then user sees dashboard"):
-                    pass
-            """
-        )
-        result = pytester.runpytest("-v")
-        result.assert_outcomes(failed=1)
-
-
-# =============================================================================
-# Test: Result persistence
-# =============================================================================
-
 
 class TestResultPersistence:
     """Tests for result persistence to disk."""
 
-    def test_results_saved_to_disk(
-        self, pytester: Pytester, create_features_json
-    ) -> None:
+    def test_results_saved_to_disk(self, pytester: Pytester, create_specs_tree) -> None:
         """Test that results are saved to .specleft/results/."""
-        create_features_json()
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
             """
@@ -569,114 +296,366 @@ class TestResultPersistence:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-        # Check that results directory was created
         results_dir = pytester.path / ".specleft" / "results"
         assert results_dir.exists(), "Results directory should exist"
 
-        # Check that a results file was created
         json_files = list(results_dir.glob("results_*.json"))
         assert len(json_files) == 1, "One results file should exist"
 
-        # Verify the content
         results_data = json.loads(json_files[0].read_text())
         assert "summary" in results_data
         assert results_data["summary"]["passed"] == 1
+        assert results_data["features"][0]["feature_name"] == "User Authentication"
+        assert (
+            results_data["features"][0]["scenarios"][0]["scenario_name"]
+            == "Successful login"
+        )
 
-    def test_results_summary_printed(
-        self, pytester: Pytester, create_features_json
+
+class TestSanitizeMarkerName:
+    """Tests for marker name sanitization."""
+
+    def test_hyphen_replaced(self) -> None:
+        """Test that hyphens are replaced with underscores."""
+        from specleft.pytest_plugin import _sanitize_marker_name
+
+        assert _sanitize_marker_name("auth-flow") == "auth_flow"
+
+
+class TestCollectAllTags:
+    """Tests for collecting all tags from specs."""
+
+    def test_collects_tags_from_all_scenarios(self) -> None:
+        """Test that all unique tags are collected from specs."""
+        from specleft.pytest_plugin import _collect_all_tags
+        from specleft.schema import (
+            FeatureSpec,
+            Priority,
+            ScenarioSpec,
+            SpecsConfig,
+            StorySpec,
+        )
+
+        specs_config = SpecsConfig(
+            features=[
+                FeatureSpec(
+                    feature_id="auth",
+                    name="Auth",
+                    stories=[
+                        StorySpec(
+                            story_id="login",
+                            name="Login",
+                            scenarios=[
+                                ScenarioSpec(
+                                    scenario_id="login-success",
+                                    name="Successful login",
+                                    priority=Priority.HIGH,
+                                    tags=["smoke", "critical"],
+                                ),
+                                ScenarioSpec(
+                                    scenario_id="login-failure",
+                                    name="Failed login",
+                                    priority=Priority.MEDIUM,
+                                    tags=["regression", "negative"],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                FeatureSpec(
+                    feature_id="parse",
+                    name="Parsing",
+                    stories=[
+                        StorySpec(
+                            story_id="units",
+                            name="Units",
+                            scenarios=[
+                                ScenarioSpec(
+                                    scenario_id="extract-unit",
+                                    name="Extract unit",
+                                    priority=Priority.MEDIUM,
+                                    tags=["unit", "smoke"],  # "smoke" is duplicate
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        )
+
+        tags = _collect_all_tags(specs_config)
+
+        assert tags == {"smoke", "critical", "regression", "negative", "unit"}
+
+    def test_returns_empty_set_when_no_tags(self) -> None:
+        """Test that empty set is returned when scenarios have no tags."""
+        from specleft.pytest_plugin import _collect_all_tags
+        from specleft.schema import (
+            FeatureSpec,
+            ScenarioSpec,
+            SpecsConfig,
+            StorySpec,
+        )
+
+        specs_config = SpecsConfig(
+            features=[
+                FeatureSpec(
+                    feature_id="auth",
+                    name="Auth",
+                    stories=[
+                        StorySpec(
+                            story_id="login",
+                            name="Login",
+                            scenarios=[
+                                ScenarioSpec(
+                                    scenario_id="login-success",
+                                    name="Successful login",
+                                    tags=[],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ]
+        )
+
+        tags = _collect_all_tags(specs_config)
+
+        assert tags == set()
+
+
+class TestDynamicMarkerRegistration:
+    """Tests for dynamic marker registration from scenario tags."""
+
+    def test_no_unknown_marker_warnings(
+        self, pytester: Pytester, create_specs_tree
     ) -> None:
-        """Test that results summary is printed to console."""
-        create_features_json()
+        """Test that no PytestUnknownMarkWarning is raised for scenario tags."""
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
+            @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
             """
         )
-        result = pytester.runpytest("-v")
+        # Run with -W error to turn warnings into errors
+        result = pytester.runpytest(
+            "-v", "-W", "error::pytest.PytestUnknownMarkWarning"
+        )
         result.assert_outcomes(passed=1)
-        result.stdout.fnmatch_lines(["*SpecLeft Test Results*"])
+        # Should not contain any unknown marker warnings
+        assert "PytestUnknownMarkWarning" not in result.stdout.str()
 
-
-# =============================================================================
-# Test: Edge cases
-# =============================================================================
-
-
-class TestEdgeCases:
-    """Tests for edge cases and error handling."""
-
-    def test_non_specleft_tests_unaffected(
-        self, pytester: Pytester, create_features_json
+    def test_markers_registered_for_all_priorities(
+        self, pytester: Pytester, create_specs_tree
     ) -> None:
-        """Test that non-specleft tests are unaffected."""
-        create_features_json()
+        """Test that priority markers are registered dynamically."""
         pytester.makepyfile(
             """
+            import pytest
             from specleft import specleft
 
-            def test_regular():
+            @specleft(feature_id="auth", scenario_id="login-success")
+            def test_high_priority():
                 pass
 
-            @specleft(feature_id="AUTH-001", scenario_id="login-success")
-            def test_specleft():
+            @specleft(feature_id="auth", scenario_id="login-failure")
+            def test_medium_priority():
                 pass
             """
         )
-        result = pytester.runpytest("-v")
+        # Run with strict markers and turn warnings to errors
+        result = pytester.runpytest(
+            "-v",
+            "--strict-markers",
+            "-W",
+            "error::pytest.PytestUnknownMarkWarning",
+        )
         result.assert_outcomes(passed=2)
 
-    def test_invalid_features_json_handled(self, pytester: Pytester) -> None:
-        """Test that invalid features.json is handled gracefully."""
-        # Create invalid features.json
-        features_file = pytester.path / "features.json"
-        features_file.write_text("{ invalid json }")
-
+    def test_hyphenated_tags_registered_correctly(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that hyphenated tags are sanitized and registered."""
+        # The specs tree includes "auth-flow" tag which should become "auth_flow"
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="ANY-001", scenario_id="any-scenario")
-            def test_runs_anyway():
+            @specleft(feature_id="auth", scenario_id="login-success")
+            def test_with_hyphenated_tag():
                 pass
             """
         )
-        # Should run without error, just log a warning
+        result = pytester.runpytest(
+            "-v",
+            "--strict-markers",
+            "-W",
+            "error::pytest.PytestUnknownMarkWarning",
+        )
+        result.assert_outcomes(passed=1)
+
+
+class TestSkippedTestCapture:
+    """Tests for capturing skipped tests in results."""
+
+    def test_skipped_tests_captured_in_results(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that skipped tests are captured in results JSON."""
+        pytester.makepyfile(
+            """
+            import pytest
+            from specleft import specleft
+
+            @specleft(feature_id="auth", scenario_id="login-success", skip=True)
+            def test_skipped():
+                pass
+            """
+        )
+        result = pytester.runpytest("-v")
+        result.assert_outcomes(skipped=1)
+
+        results_dir = pytester.path / ".specleft" / "results"
+        json_files = list(results_dir.glob("results_*.json"))
+        assert len(json_files) == 1
+
+        results_data = json.loads(json_files[0].read_text())
+        assert results_data["summary"]["skipped"] == 1
+        assert results_data["summary"]["total_executions"] == 1
+
+    def test_skipped_via_pytest_mark_captured(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that tests skipped via pytest.mark.skip are captured."""
+        pytester.makepyfile(
+            """
+            import pytest
+            from specleft import specleft
+
+            @pytest.mark.skip(reason="Not implemented yet")
+            @specleft(feature_id="auth", scenario_id="login-success")
+            def test_skipped_by_marker():
+                pass
+            """
+        )
+        result = pytester.runpytest("-v")
+        result.assert_outcomes(skipped=1)
+
+        results_dir = pytester.path / ".specleft" / "results"
+        json_files = list(results_dir.glob("results_*.json"))
+        assert len(json_files) == 1
+
+        results_data = json.loads(json_files[0].read_text())
+        assert results_data["summary"]["skipped"] == 1
+
+    def test_mixed_passed_and_skipped_results(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that both passed and skipped tests are captured correctly."""
+        pytester.makepyfile(
+            """
+            import pytest
+            from specleft import specleft
+
+            @specleft(feature_id="auth", scenario_id="login-success")
+            def test_passed():
+                pass
+
+            @specleft(feature_id="auth", scenario_id="login-failure", skip=True)
+            def test_skipped():
+                pass
+            """
+        )
+        result = pytester.runpytest("-v")
+        result.assert_outcomes(passed=1, skipped=1)
+
+        results_dir = pytester.path / ".specleft" / "results"
+        json_files = list(results_dir.glob("results_*.json"))
+        results_data = json.loads(json_files[0].read_text())
+
+        assert results_data["summary"]["passed"] == 1
+        assert results_data["summary"]["skipped"] == 1
+        assert results_data["summary"]["total_executions"] == 2
+
+
+class TestTagsInMetadata:
+    """Tests for tags being included in test metadata."""
+
+    def test_tags_included_in_results(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that scenario tags are included in results JSON."""
+        pytester.makepyfile(
+            """
+            from specleft import specleft
+
+            @specleft(feature_id="auth", scenario_id="login-success")
+            def test_with_tags():
+                pass
+            """
+        )
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_empty_tags_no_markers_added(self, pytester: Pytester) -> None:
-        """Test that scenarios with empty tags don't cause issues."""
-        features = {
-            "version": "1.0",
-            "features": [
-                {
-                    "id": "TEST-001",
-                    "name": "Test Feature",
-                    "scenarios": [
-                        {
-                            "id": "no-tags",
-                            "name": "Scenario without tags",
-                            "tags": [],  # Empty tags
-                            "steps": [
-                                {"type": "when", "description": "something happens"},
-                            ],
-                        },
-                    ],
-                },
-            ],
-        }
-        features_file = pytester.path / "features.json"
-        features_file.write_text(json.dumps(features, indent=2))
+        results_dir = pytester.path / ".specleft" / "results"
+        json_files = list(results_dir.glob("results_*.json"))
+        results_data = json.loads(json_files[0].read_text())
+
+        execution = results_data["features"][0]["scenarios"][0]["executions"][0]
+        assert "tags" in execution
+        # login-success has tags: [smoke, critical, auth-flow]
+        assert "smoke" in execution["tags"]
+        assert "critical" in execution["tags"]
+        assert "auth-flow" in execution["tags"]
+
+    def test_empty_tags_when_no_scenario_tags(
+        self, pytester: Pytester, create_specs_tree
+    ) -> None:
+        """Test that empty tags list is included when scenario has no tags."""
+        # Create a scenario without tags
+        scenario_dir = pytester.path / "features" / "notags" / "story"
+        scenario_dir.mkdir(parents=True)
+
+        (pytester.path / "features" / "notags" / "_feature.md").write_text(
+            """
+---
+feature_id: notags
+priority: medium
+---
+
+# Feature: No Tags Feature
+""".strip()
+        )
+        (scenario_dir / "_story.md").write_text(
+            """
+---
+story_id: story
+priority: medium
+---
+
+# Story: Story
+""".strip()
+        )
+        (scenario_dir / "no_tags.md").write_text(
+            """
+---
+scenario_id: no-tags
+priority: medium
+tags: []
+---
+
+# Scenario: No tags scenario
+""".strip()
+        )
 
         pytester.makepyfile(
             """
             from specleft import specleft
 
-            @specleft(feature_id="TEST-001", scenario_id="no-tags")
+            @specleft(feature_id="notags", scenario_id="no-tags")
             def test_no_tags():
                 pass
             """
@@ -684,38 +663,14 @@ class TestEdgeCases:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
+        results_dir = pytester.path / ".specleft" / "results"
+        json_files = list(results_dir.glob("results_*.json"))
+        results_data = json.loads(json_files[0].read_text())
 
-# =============================================================================
-# Test: Sanitize marker name
-# =============================================================================
-
-
-class TestSanitizeMarkerName:
-    """Tests for the marker name sanitization function."""
-
-    def test_hyphen_replaced(self) -> None:
-        """Test that hyphens are replaced with underscores."""
-        from specleft.pytest_plugin import _sanitize_marker_name
-
-        assert _sanitize_marker_name("auth-flow") == "auth_flow"
-        assert _sanitize_marker_name("multi-word-tag") == "multi_word_tag"
-
-    def test_space_replaced(self) -> None:
-        """Test that spaces are replaced with underscores."""
-        from specleft.pytest_plugin import _sanitize_marker_name
-
-        assert _sanitize_marker_name("auth flow") == "auth_flow"
-        assert _sanitize_marker_name("multi word tag") == "multi_word_tag"
-
-    def test_combined_replacement(self) -> None:
-        """Test replacement of both hyphens and spaces."""
-        from specleft.pytest_plugin import _sanitize_marker_name
-
-        assert _sanitize_marker_name("auth-flow test") == "auth_flow_test"
-
-    def test_simple_tag_unchanged(self) -> None:
-        """Test that simple tags remain unchanged."""
-        from specleft.pytest_plugin import _sanitize_marker_name
-
-        assert _sanitize_marker_name("smoke") == "smoke"
-        assert _sanitize_marker_name("regression") == "regression"
+        # Find the notags feature
+        notags_feature = next(
+            f for f in results_data["features"] if f["feature_id"] == "notags"
+        )
+        execution = notags_feature["scenarios"][0]["executions"][0]
+        assert "tags" in execution
+        assert execution["tags"] == []

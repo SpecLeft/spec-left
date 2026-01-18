@@ -4,15 +4,14 @@ Example tests demonstrating SpecLeft SDK features.
 This file shows how to use:
 - @specleft decorator for test metadata
 - specleft.step() context manager for step tracking
-- @reusable_step decorator for reusable step methods
-- Parameterized tests with test_data from features.json
+- @shared_step decorator for shared step methods
+- Parameterized tests with test_data from specs
 """
 
 import re
 
 import pytest
-
-from specleft import reusable_step, specleft
+from specleft import shared_step, specleft
 
 # =============================================================================
 # Helper functions (simulating application code)
@@ -68,7 +67,7 @@ class AuthService:
 # =============================================================================
 
 
-@reusable_step("User logs in with username '{username}'")
+@shared_step("User logs in with username '{username}'")
 def login_user(auth_service: AuthService, username: str, password: str) -> bool:
     """Reusable step method for logging in a user.
 
@@ -86,7 +85,7 @@ def login_user(auth_service: AuthService, username: str, password: str) -> bool:
     return auth_service.login(username, password)
 
 
-@reusable_step("Verify user '{username}' is authenticated")
+@shared_step("Verify user '{username}' is authenticated")
 def verify_authenticated(auth_service: AuthService, username: str) -> None:
     """Reusable step to verify a user is authenticated.
 
@@ -97,10 +96,12 @@ def verify_authenticated(auth_service: AuthService, username: str) -> None:
     Raises:
         AssertionError: If user is not authenticated
     """
-    assert auth_service.is_authenticated(username), f"User '{username}' is not authenticated"
+    assert auth_service.is_authenticated(
+        username
+    ), f"User '{username}' is not authenticated"
 
 
-@reusable_step("Verify session exists for '{username}'")
+@shared_step("Verify session exists for '{username}'")
 def verify_session_exists(auth_service: AuthService, username: str) -> None:
     """Reusable step to verify a session exists.
 
@@ -126,11 +127,11 @@ def auth_service() -> AuthService:
 
 
 # =============================================================================
-# Feature: AUTH-001 - User Authentication
+# Feature: auth - User Authentication
 # =============================================================================
 
 
-@specleft(feature_id="AUTH-001", scenario_id="login-success")
+@specleft(feature_id="auth", scenario_id="login-success")
 @pytest.mark.parametrize(
     "username, password",
     [
@@ -144,7 +145,7 @@ def test_login_success(auth_service: AuthService, username: str, password: str) 
 
     This test demonstrates:
     - Parameterized tests with @pytest.mark.parametrize
-    - Using @reusable_step decorated functions for automatic step tracing
+    - Using @shared_step decorated functions for automatic step tracing
     - Parameter interpolation in step descriptions
 
     Priority: critical
@@ -154,18 +155,18 @@ def test_login_success(auth_service: AuthService, username: str, password: str) 
         assert username in auth_service.valid_users
         assert auth_service.valid_users[username] == password
 
-    # Using reusable step - automatically traced with parameter values
+    # Using shared step - automatically traced with parameter values
     result = login_user(auth_service, username, password)
 
     with specleft.step("Then user is authenticated and session is created"):
         assert result is True
 
-    # More reusable steps for verification
+    # More shared steps for verification
     verify_authenticated(auth_service, username)
     verify_session_exists(auth_service, username)
 
 
-@specleft(feature_id="AUTH-001", scenario_id="login-invalid-credentials")
+@specleft(feature_id="auth", scenario_id="login-invalid-credentials")
 def test_login_invalid_credentials(auth_service: AuthService) -> None:
     """Login fails with invalid credentials.
 
@@ -190,11 +191,11 @@ def test_login_invalid_credentials(auth_service: AuthService) -> None:
 
 
 # =============================================================================
-# Feature: PARSE-001 - Unit Parsing
+# Feature: parse - Unit Parsing
 # =============================================================================
 
 
-@specleft(feature_id="PARSE-001", scenario_id="extract-unit-valid")
+@specleft(feature_id="parse", scenario_id="extract-unit-valid")
 @pytest.mark.parametrize(
     "input_str, expected",
     [
@@ -219,7 +220,7 @@ def test_extract_unit_valid(input_str: str, expected: str) -> None:
         assert result == expected, f"Expected '{expected}', got '{result}'"
 
 
-@specleft(feature_id="PARSE-001", scenario_id="extract-unit-invalid")
+@specleft(feature_id="parse", scenario_id="extract-unit-invalid")
 def test_extract_unit_invalid() -> None:
     """Handle invalid input gracefully.
 

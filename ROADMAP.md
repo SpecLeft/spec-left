@@ -10,6 +10,7 @@
 ## Planned (v0.2.0 - Collections & Insights)
 - 📊 **Test Collector** — Aggregate and correlate test results across multiple runs, environments, and branches. Track trends, identify flaky tests, and spot patterns in failures.
 - 📈 **Enhanced Reporting** — Interactive dashboards with drill-down capabilities, failure analysis, and historical trends.
+- 🎚️ **SpecLeft CLI Filters** — First-class test selection via `--specleft-tag/priority/feature/scenario` flags and pytest config defaults.
 
 ## Future (v0.3.0+)
 - 🎯 **Test Plan Orchestration** — Manage, chain and orchestrate test execution based on dependencies, priorities, and conditional logic. Build dynamic test workflows.

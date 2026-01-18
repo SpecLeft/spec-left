@@ -8,14 +8,14 @@ import time
 from datetime import datetime
 
 import pytest
-
 from specleft.decorators import (
     StepResult,
-    _test_context,
+    _get_context,
     clear_steps,
+    get_current_metadata,
     get_current_steps,
     is_in_specleft_test,
-    reusable_step,
+    shared_step,
     specleft,
     step,
 )
@@ -27,16 +27,13 @@ class TestStepResult:
     def test_minimal_step_result(self) -> None:
         """Test creating StepResult with required fields only."""
         now = datetime.now()
-        result = StepResult(
-            description="Test step",
-            status="passed",
-            start_time=now,
-        )
+        result = StepResult(description="Test step", start_time=now)
         assert result.description == "Test step"
         assert result.status == "passed"
         assert result.start_time == now
         assert result.end_time is None
         assert result.error is None
+        assert result.skipped_reason is None
 
     def test_full_step_result(self) -> None:
         """Test creating StepResult with all fields."""
@@ -48,22 +45,40 @@ class TestStepResult:
             start_time=start,
             end_time=end,
             error="Something went wrong",
+            skipped_reason="Not needed",
         )
         assert result.description == "Failed step"
         assert result.status == "failed"
         assert result.end_time == end
         assert result.error == "Something went wrong"
+        assert result.skipped_reason == "Not needed"
+
+    def test_duration_returns_zero_without_end_time(self) -> None:
+        """Test duration property when end_time is missing."""
+        result = StepResult(description="Test", start_time=datetime.now())
+        assert result.duration == 0.0
+
+    def test_duration_returns_seconds(self) -> None:
+        """Test duration property when end_time is present."""
+        start = datetime.now()
+        result = StepResult(description="Test", start_time=start, end_time=start)
+        assert result.duration == 0.0
 
 
-class TestHelperFunctions:
-    """Tests for helper functions."""
+class TestContextHelpers:
+    """Tests for context helper functions."""
+
+    def setup_method(self) -> None:
+        clear_steps()
+        _get_context()["feature_id"] = None
+        _get_context()["scenario_id"] = None
+        _get_context()["in_specleft_test"] = False
 
     def test_clear_steps(self) -> None:
         """Test that clear_steps resets the steps list."""
-        # Add some steps
-        _test_context.steps = [
-            StepResult("step1", "passed", datetime.now()),
-            StepResult("step2", "passed", datetime.now()),
+        _get_context()["steps"] = [
+            StepResult("step1", start_time=datetime.now()),
+            StepResult("step2", start_time=datetime.now()),
         ]
         assert len(get_current_steps()) == 2
 
@@ -72,20 +87,22 @@ class TestHelperFunctions:
 
     def test_get_current_steps_initializes_list(self) -> None:
         """Test that get_current_steps creates empty list if not present."""
-        # Remove steps attribute if present
-        if hasattr(_test_context, "steps"):
-            delattr(_test_context, "steps")
-
+        _get_context().pop("steps", None)
         steps = get_current_steps()
         assert steps == []
-        assert hasattr(_test_context, "steps")
+        assert "steps" in _get_context()
+
+    def test_get_current_metadata_returns_values(self) -> None:
+        """Test metadata helper returns current ids."""
+        _get_context()["feature_id"] = "feat"
+        _get_context()["scenario_id"] = "scenario"
+        assert get_current_metadata() == {
+            "feature_id": "feat",
+            "scenario_id": "scenario",
+        }
 
     def test_is_in_specleft_test_default_false(self) -> None:
         """Test that is_in_specleft_test returns False by default."""
-        # Remove attribute if present
-        if hasattr(_test_context, "in_specleft_test"):
-            delattr(_test_context, "in_specleft_test")
-
         assert is_in_specleft_test() is False
 
 
@@ -123,34 +140,23 @@ class TestSpecleftDecorator:
         assert test_user_login.__name__ == "test_user_login"
         assert test_user_login.__doc__ == "Test docstring."
 
-    def test_decorator_clears_steps_on_entry(self) -> None:
-        """Test that steps are cleared when test starts."""
-        # Pre-populate steps
-        _test_context.steps = [StepResult("old", "passed", datetime.now())]
+    def test_decorator_resets_context(self) -> None:
+        """Test that context is reset when test starts."""
+        _get_context()["steps"] = [StepResult("old", start_time=datetime.now())]
+        _get_context()["feature_id"] = "old"
+        _get_context()["scenario_id"] = "old"
+        _get_context()["in_specleft_test"] = False
 
         @specleft(feature_id="AUTH-001", scenario_id="login")
         def test_clears() -> None:
-            # Steps should be empty at start
-            assert len(get_current_steps()) == 0
+            assert get_current_steps() == []
+            assert get_current_metadata() == {
+                "feature_id": "AUTH-001",
+                "scenario_id": "login",
+            }
+            assert is_in_specleft_test() is True
 
         test_clears()
-
-    def test_decorator_sets_in_specleft_test_flag(self) -> None:
-        """Test that in_specleft_test flag is set during execution."""
-        flag_during_test = None
-
-        @specleft(feature_id="AUTH-001", scenario_id="login")
-        def test_flag() -> None:
-            nonlocal flag_during_test
-            flag_during_test = is_in_specleft_test()
-
-        # Before test
-        _test_context.in_specleft_test = False
-
-        test_flag()
-
-        # During test, flag should have been True
-        assert flag_during_test is True
 
     def test_decorator_clears_flag_after_test(self) -> None:
         """Test that in_specleft_test flag is cleared after execution."""
@@ -160,8 +166,6 @@ class TestSpecleftDecorator:
             pass
 
         test_clears_flag()
-
-        # After test, flag should be False
         assert is_in_specleft_test() is False
 
     def test_decorator_clears_flag_on_exception(self) -> None:
@@ -174,7 +178,6 @@ class TestSpecleftDecorator:
         with pytest.raises(ValueError):
             test_raises()
 
-        # Flag should still be cleared
         assert is_in_specleft_test() is False
 
     def test_decorator_returns_function_result(self) -> None:
@@ -191,18 +194,46 @@ class TestSpecleftDecorator:
         """Test that decorator passes arguments correctly."""
 
         @specleft(feature_id="AUTH-001", scenario_id="login")
-        def test_with_args(a: int, b: str, c: float = 1.0) -> tuple:
+        def test_with_args(a: int, b: str, c: float = 1.0) -> tuple[int, str, float]:
             return (a, b, c)
 
         result = test_with_args(1, "hello", c=2.5)
         assert result == (1, "hello", 2.5)
+
+    def test_decorator_skip_adds_marker(self) -> None:
+        """Test that skip=True applies pytest skip marker."""
+
+        @specleft(
+            feature_id="AUTH-001",
+            scenario_id="login",
+            skip=True,
+            reason="Not implemented",
+        )
+        def test_skipped() -> None:
+            pass
+
+        marks = getattr(test_skipped, "pytestmark", [])
+        skip_marks = [mark for mark in marks if mark.name == "skip"]
+        assert skip_marks
+        assert skip_marks[0].kwargs.get("reason") == "Not implemented"
+
+    def test_decorator_skip_uses_default_reason(self) -> None:
+        """Test skip uses default reason when omitted."""
+
+        @specleft(feature_id="AUTH-001", scenario_id="login", skip=True)
+        def test_skipped_default() -> None:
+            pass
+
+        marks = getattr(test_skipped_default, "pytestmark", [])
+        skip_marks = [mark for mark in marks if mark.name == "skip"]
+        assert skip_marks
+        assert skip_marks[0].kwargs.get("reason") == "SpecLeft test skipped"
 
 
 class TestStepContextManager:
     """Tests for specleft.step() context manager."""
 
     def setup_method(self) -> None:
-        """Clear steps before each test."""
         clear_steps()
 
     def test_step_records_description(self) -> None:
@@ -234,7 +265,7 @@ class TestStepContextManager:
     def test_step_records_timing(self) -> None:
         """Test that step records start and end times."""
         with step("Timed step"):
-            time.sleep(0.01)  # Small delay to ensure measurable duration
+            time.sleep(0.01)
 
         steps = get_current_steps()
         assert steps[0].start_time is not None
@@ -273,58 +304,47 @@ class TestStepContextManager:
         steps = get_current_steps()
         assert steps[0].description == "User logs in with test@example.com"
 
-    def test_step_yields_step_result(self) -> None:
-        """Test that step context manager yields StepResult."""
-        with step("Test step") as result:
-            assert isinstance(result, StepResult)
-            assert result.description == "Test step"
-
-    def test_nested_steps(self) -> None:
-        """Test that nested steps are all recorded."""
-        with step("Outer step"), step("Inner step"):
+    def test_step_skip_records_result(self) -> None:
+        """Test that skipped steps are recorded."""
+        with step("Skipped step", skip=True, reason="Not needed"):
             pass
 
         steps = get_current_steps()
-        # Both steps should be recorded (inner first due to exit order)
-        assert len(steps) == 2
+        assert len(steps) == 1
+        assert steps[0].status == "skipped"
+        assert steps[0].skipped_reason == "Not needed"
+
+    def test_step_skip_uses_default_reason(self) -> None:
+        """Test skipped steps default reason."""
+        with step("Skipped step", skip=True):
+            pass
+
+        steps = get_current_steps()
+        assert steps[0].status == "skipped"
+        assert steps[0].skipped_reason == "Step marked as skip"
 
 
 class TestReusableStepDecorator:
-    """Tests for @reusable_step decorator."""
+    """Tests for @shared_step decorator."""
 
     def setup_method(self) -> None:
-        """Clear steps and reset flag before each test."""
         clear_steps()
-        _test_context.in_specleft_test = False
+        _get_context()["in_specleft_test"] = False
 
     def test_reusable_step_stores_description(self) -> None:
-        """Test that reusable_step stores description on function."""
+        """Test that shared_step stores description on function."""
 
-        @reusable_step("User performs action")
+        @shared_step("User performs action")
         def user_action() -> None:
             pass
 
         assert hasattr(user_action, "_specleft_step_description")
         assert user_action._specleft_step_description == "User performs action"
 
-    def test_reusable_step_not_traced_outside_specleft_test(self) -> None:
-        """Test that reusable step doesn't trace outside @specleft tests."""
-
-        @reusable_step("User clicks button")
-        def click_button() -> str:
-            return "clicked"
-
-        result = click_button()
-
-        # Should return result normally
-        assert result == "clicked"
-        # Should NOT record step
-        assert len(get_current_steps()) == 0
-
     def test_reusable_step_traced_inside_specleft_test(self) -> None:
-        """Test that reusable step traces inside @specleft tests."""
+        """Test that shared step traces inside @specleft tests."""
 
-        @reusable_step("User clicks button")
+        @shared_step("User clicks button")
         def click_button() -> str:
             return "clicked"
 
@@ -340,9 +360,9 @@ class TestReusableStepDecorator:
         assert steps[0].description == "User clicks button"
 
     def test_reusable_step_parameter_interpolation(self) -> None:
-        """Test parameter interpolation in reusable step description."""
+        """Test parameter interpolation in shared step description."""
 
-        @reusable_step("User logs in with {username}")
+        @shared_step("User logs in with {username}")
         def login(username: str, password: str) -> bool:
             return True
 
@@ -359,7 +379,7 @@ class TestReusableStepDecorator:
     def test_reusable_step_multiple_parameters(self) -> None:
         """Test interpolation with multiple parameters."""
 
-        @reusable_step("Add {a} and {b} expecting {expected}")
+        @shared_step("Add {a} and {b} expecting {expected}")
         def add_numbers(a: int, b: int, expected: int) -> bool:
             return a + b == expected
 
@@ -375,13 +395,13 @@ class TestReusableStepDecorator:
     def test_reusable_step_with_default_parameters(self) -> None:
         """Test interpolation with default parameters."""
 
-        @reusable_step("Navigate to {url} with timeout {timeout}")
+        @shared_step("Navigate to {url} with timeout {timeout}")
         def navigate(url: str, timeout: int = 30) -> None:
             pass
 
         @specleft(feature_id="NAV-001", scenario_id="navigate")
         def test_nav() -> None:
-            navigate("/dashboard")  # Uses default timeout
+            navigate("/dashboard")
 
         test_nav()
 
@@ -391,7 +411,7 @@ class TestReusableStepDecorator:
     def test_reusable_step_invalid_interpolation_uses_original(self) -> None:
         """Test that invalid interpolation falls back to original description."""
 
-        @reusable_step("User does {nonexistent_param}")
+        @shared_step("User does {nonexistent_param}")
         def do_action(value: str) -> None:
             pass
 
@@ -402,13 +422,12 @@ class TestReusableStepDecorator:
         test_action()
 
         steps = get_current_steps()
-        # Should use original description when interpolation fails
         assert steps[0].description == "User does {nonexistent_param}"
 
     def test_reusable_step_preserves_function_name(self) -> None:
-        """Test that reusable_step preserves original function name."""
+        """Test that shared_step preserves original function name."""
 
-        @reusable_step("Perform action")
+        @shared_step("Perform action")
         def perform_important_action() -> None:
             """Important action docstring."""
             pass
@@ -417,9 +436,9 @@ class TestReusableStepDecorator:
         assert perform_important_action.__doc__ == "Important action docstring."
 
     def test_reusable_step_returns_value(self) -> None:
-        """Test that reusable step returns function's return value."""
+        """Test that shared step returns function's return value."""
 
-        @reusable_step("Get user data")
+        @shared_step("Get user data")
         def get_user() -> dict:
             return {"id": 1, "name": "Test"}
 
@@ -432,9 +451,9 @@ class TestReusableStepDecorator:
         assert result == {"id": 1, "name": "Test"}
 
     def test_reusable_step_propagates_exceptions(self) -> None:
-        """Test that reusable step propagates exceptions."""
+        """Test that shared step propagates exceptions."""
 
-        @reusable_step("Failing action")
+        @shared_step("Failing action")
         def failing_action() -> None:
             raise RuntimeError("Action failed")
 
@@ -451,13 +470,13 @@ class TestReusableStepDecorator:
         assert "Action failed" in steps[0].error
 
     def test_multiple_reusable_steps_in_test(self) -> None:
-        """Test multiple reusable steps in one test."""
+        """Test multiple shared steps in one test."""
 
-        @reusable_step("Step A with {value}")
+        @shared_step("Step A with {value}")
         def step_a(value: str) -> None:
             pass
 
-        @reusable_step("Step B with {value}")
+        @shared_step("Step B with {value}")
         def step_b(value: str) -> None:
             pass
 
@@ -487,12 +506,11 @@ class TestThreadSafety:
             @specleft(feature_id="THREAD-001", scenario_id="thread-test")
             def thread_test() -> None:
                 with step(f"Thread {thread_id} step"):
-                    time.sleep(0.01)  # Simulate work
+                    time.sleep(0.01)
 
             thread_test()
             results[thread_id] = [s.description for s in get_current_steps()]
 
-        # Run multiple threads concurrently
         threads = []
         for i in range(5):
             t = threading.Thread(target=worker, args=(i,))
@@ -502,7 +520,6 @@ class TestThreadSafety:
         for t in threads:
             t.join()
 
-        # Each thread should have only its own step
         for thread_id, steps in results.items():
             assert len(steps) == 1
             assert f"Thread {thread_id}" in steps[0]
@@ -523,11 +540,9 @@ class TestThreadSafety:
             futures = [executor.submit(worker, i) for i in range(5)]
             concurrent.futures.wait(futures)
 
-        # All threads should have had True during their test
         for thread_id in range(5):
             assert flags_during_test[thread_id] is True
 
-        # After all tests, flag should be False in main thread
         assert is_in_specleft_test() is False
 
 
@@ -535,13 +550,12 @@ class TestCombinedUsage:
     """Tests for combined usage of decorators and context managers."""
 
     def setup_method(self) -> None:
-        """Clear steps before each test."""
         clear_steps()
 
     def test_manual_and_reusable_steps_together(self) -> None:
-        """Test mixing manual step() with reusable_step()."""
+        """Test mixing manual step() with shared_step()."""
 
-        @reusable_step("Setup user {username}")
+        @shared_step("Setup user {username}")
         def setup_user(username: str) -> None:
             pass
 
@@ -562,25 +576,24 @@ class TestCombinedUsage:
         assert steps[2].description == "Then verify results"
 
     def test_reusable_step_called_from_another_reusable_step(self) -> None:
-        """Test reusable step calling another reusable step."""
+        """Test shared step calling another shared step."""
 
-        @reusable_step("Low level action: {action}")
+        @shared_step("Low level action: {action}")
         def low_level(action: str) -> None:
             pass
 
-        @reusable_step("High level workflow")
+        @shared_step("High level workflow")
         def high_level() -> None:
             low_level("step 1")
             low_level("step 2")
 
-        @specleft(feature_id="NESTED-001", scenario_id="nested-reusable")
+        @specleft(feature_id="NESTED-001", scenario_id="nested-shared")
         def test_nested() -> None:
             high_level()
 
         test_nested()
 
         steps = get_current_steps()
-        # All steps should be recorded
         assert len(steps) == 3
         assert steps[0].description == "Low level action: step 1"
         assert steps[1].description == "Low level action: step 2"

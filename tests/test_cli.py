@@ -3,12 +3,90 @@
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
-
 from specleft.cli.main import cli, to_snake_case
+
+
+def _write_file(path: Path, content: str) -> None:
+    path.write_text(textwrap.dedent(content).strip())
+
+
+def _create_feature_specs(
+    base_dir: Path,
+    *,
+    feature_id: str,
+    story_id: str,
+    scenario_id: str,
+    include_test_data: bool = False,
+    features_dir_name: str = "features",
+) -> Path:
+    features_dir = base_dir / features_dir_name
+    feature_dir = features_dir / feature_id
+    story_dir = feature_dir / story_id
+    story_dir.mkdir(parents=True, exist_ok=True)
+
+    scenario_file = story_dir / f"{scenario_id.replace('-', '_')}.md"
+
+    _write_file(
+        feature_dir / "_feature.md",
+        f"""
+        ---
+        feature_id: {feature_id}
+        priority: high
+        tags: [core]
+        ---
+
+        # Feature: {feature_id.title()} Feature
+        """,
+    )
+
+    _write_file(
+        story_dir / "_story.md",
+        f"""
+        ---
+        story_id: {story_id}
+        tags: [smoke]
+        ---
+
+        # Story: {story_id.title()} Story
+        """,
+    )
+
+    test_data_block = ""
+    if include_test_data:
+        test_data_block = """
+        ## Test Data
+        | input | expected | description |
+        |-------|----------|-------------|
+        | a | A | lowercase a |
+        | b | B | lowercase b |
+        """
+
+    _write_file(
+        scenario_file,
+        f"""
+        ---
+        scenario_id: {scenario_id}
+        priority: high
+        tags: [smoke]
+        execution_time: fast
+        ---
+
+        # Scenario: {scenario_id.replace('-', ' ').title()}
+
+        {test_data_block}
+        ## Steps
+        - **Given** a user exists
+        - **When** the user logs in
+        - **Then** access is granted
+        """,
+    )
+
+    return features_dir
 
 
 class TestToSnakeCase:
@@ -47,7 +125,7 @@ class TestCLIBase:
         runner = CliRunner()
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "0.1.0" in result.output
+        assert "0.2.0" in result.output
 
     def test_cli_help(self) -> None:
         """Test --help flag."""
@@ -74,250 +152,266 @@ class TestTestGroup:
 class TestSkeletonCommand:
     """Tests for 'specleft test skeleton' command."""
 
-    @pytest.fixture
-    def sample_features_json(self) -> dict:
-        """Sample features.json content for testing."""
-        return {
-            "version": "1.0",
-            "features": [
-                {
-                    "id": "TEST-001",
-                    "name": "Test Feature",
-                    "description": "A test feature",
-                    "scenarios": [
-                        {
-                            "id": "scenario-one",
-                            "name": "First scenario",
-                            "priority": "high",
-                            "tags": ["smoke"],
-                            "steps": [
-                                {"type": "given", "description": "a precondition"},
-                                {"type": "when", "description": "an action"},
-                                {"type": "then", "description": "a result"},
-                            ],
-                        },
-                    ],
-                },
-            ],
-        }
-
-    @pytest.fixture
-    def sample_features_with_test_data(self) -> dict:
-        """Sample features.json with parameterized test data."""
-        return {
-            "version": "1.0",
-            "features": [
-                {
-                    "id": "PARAM-001",
-                    "name": "Parameterized Feature",
-                    "scenarios": [
-                        {
-                            "id": "param-scenario",
-                            "name": "Parameterized scenario",
-                            "priority": "medium",
-                            "test_data": [
-                                {
-                                    "params": {"input": "a", "expected": "A"},
-                                    "description": "lowercase a",
-                                },
-                                {
-                                    "params": {"input": "b", "expected": "B"},
-                                    "description": "lowercase b",
-                                },
-                            ],
-                            "steps": [
-                                {"type": "when", "description": "converting '{input}'"},
-                                {
-                                    "type": "then",
-                                    "description": "result is '{expected}'",
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        }
-
-    def test_skeleton_missing_features_file(self) -> None:
-        """Test skeleton command when features.json is missing."""
+    def test_skeleton_missing_features_dir(self) -> None:
+        """Test skeleton command when features directory is missing."""
         runner = CliRunner()
         with runner.isolated_filesystem():
             result = runner.invoke(cli, ["test", "skeleton"])
             assert result.exit_code == 1
             assert "not found" in result.output
 
-    def test_skeleton_generates_single_file(self, sample_features_json: dict) -> None:
+    def test_skeleton_generates_single_file(self) -> None:
         """Test skeleton command with --single-file flag."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create features.json
-            Path("features.json").write_text(json.dumps(sample_features_json))
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
 
-            # Run skeleton command
-            result = runner.invoke(cli, ["test", "skeleton", "--single-file"])
+            result = runner.invoke(
+                cli, ["test", "skeleton", "--single-file"], input="y\n"
+            )
             assert result.exit_code == 0
-            assert "Generated" in result.output
+            assert "Create this test file (tests/test_generated.py)?" in result.output
+            assert "Created:" in result.output
 
-            # Check generated file
             generated_file = Path("tests/test_generated.py")
             assert generated_file.exists()
 
             content = generated_file.read_text()
             assert "from specleft import specleft" in content
-            assert (
-                '@specleft(feature_id="TEST-001", scenario_id="scenario-one")'
-                in content
-            )
-            assert "def test_scenario_one" in content
-            assert 'specleft.step("Given a precondition")' in content
-            assert 'specleft.step("When an action")' in content
-            assert 'specleft.step("Then a result")' in content
+            assert 'feature_id="auth"' in content
+            assert 'scenario_id="login-success"' in content
+            assert "skip=True" in content
+            assert "Skeleton test - not yet implemented" in content
+            assert "def test_login_success" in content
+            assert "with specleft.step('Given a user exists'):" in content
+            assert "with specleft.step('When the user logs in'):" in content
+            assert "with specleft.step('Then access is granted'):" in content
+            assert "assert not True" not in content
+            assert "Preview:" in result.output
 
-    def test_skeleton_generates_per_feature(self, sample_features_json: dict) -> None:
+    def test_skeleton_generates_per_feature(self) -> None:
         """Test skeleton command generates one file per feature."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create features.json
-            Path("features.json").write_text(json.dumps(sample_features_json))
+            _create_feature_specs(
+                Path("."),
+                feature_id="payments",
+                story_id="charge",
+                scenario_id="card-charge",
+            )
 
-            # Run skeleton command (default, no --single-file)
-            result = runner.invoke(cli, ["test", "skeleton"])
+            result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert result.exit_code == 0
 
-            # Check generated file (named after feature ID)
-            generated_file = Path("tests/test_test_001.py")
+            generated_file = Path("tests/payments/test_charge.py")
             assert generated_file.exists()
 
             content = generated_file.read_text()
             assert "from specleft import specleft" in content
+            assert 'feature_id="payments"' in content
+            assert 'scenario_id="card-charge"' in content
+            assert (
+                "Create this test file (tests/payments/test_charge.py)?"
+                in result.output
+            )
 
-    def test_skeleton_custom_output_dir(self, sample_features_json: dict) -> None:
+    def test_skeleton_custom_output_dir(self) -> None:
         """Test skeleton command with custom output directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create features.json
-            Path("features.json").write_text(json.dumps(sample_features_json))
+            _create_feature_specs(
+                Path("."),
+                feature_id="inventory",
+                story_id="availability",
+                scenario_id="check-stock",
+            )
 
-            # Run skeleton command with custom output dir
             result = runner.invoke(
-                cli, ["test", "skeleton", "--output-dir", "custom_tests"]
+                cli, ["test", "skeleton", "--output-dir", "custom_tests"], input="y\n"
             )
             assert result.exit_code == 0
 
-            # Check file is in custom directory
-            assert Path("custom_tests/test_test_001.py").exists()
+            generated_file = Path("custom_tests/inventory/test_availability.py")
+            assert generated_file.exists()
+            assert (
+                "Create this test file (custom_tests/inventory/test_availability.py)?"
+                in result.output
+            )
 
-    def test_skeleton_custom_features_file(self, sample_features_json: dict) -> None:
-        """Test skeleton command with custom features file path."""
+    def test_skeleton_custom_features_dir(self) -> None:
+        """Test skeleton command with custom features directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create features file in different location
-            Path("config").mkdir()
-            Path("config/my_features.json").write_text(json.dumps(sample_features_json))
+            features_dir = _create_feature_specs(
+                Path("."),
+                feature_id="support",
+                story_id="tickets",
+                scenario_id="open-ticket",
+                features_dir_name="specs",
+            )
 
-            # Run skeleton command with custom features file
             result = runner.invoke(
-                cli, ["test", "skeleton", "-f", "config/my_features.json"]
+                cli, ["test", "skeleton", "-f", str(features_dir)], input="y\n"
             )
             assert result.exit_code == 0
-            assert Path("tests/test_test_001.py").exists()
+            assert Path("tests/support/test_tickets.py").exists()
+            assert (
+                "Create this test file (tests/support/test_tickets.py)?"
+                in result.output
+            )
 
-    def test_skeleton_with_parameterized_tests(
-        self, sample_features_with_test_data: dict
-    ) -> None:
+    def test_skeleton_with_parameterized_tests(self) -> None:
         """Test skeleton command generates parameterized tests correctly."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create features.json
-            Path("features.json").write_text(json.dumps(sample_features_with_test_data))
+            _create_feature_specs(
+                Path("."),
+                feature_id="params",
+                story_id="format",
+                scenario_id="formatting",
+                include_test_data=True,
+            )
 
-            # Run skeleton command
-            result = runner.invoke(cli, ["test", "skeleton", "--single-file"])
+            result = runner.invoke(
+                cli, ["test", "skeleton", "--single-file"], input="y\n"
+            )
             assert result.exit_code == 0
 
-            # Check generated file
             content = Path("tests/test_generated.py").read_text()
             assert "@pytest.mark.parametrize" in content
             assert "input, expected" in content
             assert "'a'" in content
             assert "'A'" in content
+            assert "skip=True" in content
 
-    def test_skeleton_invalid_json(self) -> None:
-        """Test skeleton command with invalid JSON."""
+    def test_skeleton_invalid_dir(self) -> None:
+        """Test skeleton command with invalid features directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create invalid JSON
-            Path("features.json").write_text("{ invalid json }")
-
-            result = runner.invoke(cli, ["test", "skeleton"])
-            assert result.exit_code == 1
-            assert "Error loading" in result.output
-
-    def test_skeleton_invalid_schema(self) -> None:
-        """Test skeleton command with valid JSON but invalid schema."""
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            # Create JSON with invalid schema (missing required field)
-            Path("features.json").write_text(json.dumps({"version": "1.0"}))
-
-            result = runner.invoke(cli, ["test", "skeleton"])
-            assert result.exit_code == 1
-            assert "Error loading" in result.output
-
-    def test_skeleton_multiple_features(self) -> None:
-        """Test skeleton command with multiple features."""
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            features = {
-                "version": "1.0",
-                "features": [
-                    {
-                        "id": "FEAT-A",
-                        "name": "Feature A",
-                        "scenarios": [
-                            {
-                                "id": "scenario-a",
-                                "name": "Scenario A",
-                                "priority": "high",
-                                "steps": [
-                                    {"type": "given", "description": "something"}
-                                ],
-                            },
-                        ],
-                    },
-                    {
-                        "id": "FEAT-B",
-                        "name": "Feature B",
-                        "scenarios": [
-                            {
-                                "id": "scenario-b",
-                                "name": "Scenario B",
-                                "priority": "medium",
-                                "steps": [{"type": "when", "description": "action"}],
-                            },
-                        ],
-                    },
-                ],
-            }
-            Path("features.json").write_text(json.dumps(features))
+            Path("features").mkdir()
 
             result = runner.invoke(cli, ["test", "skeleton"])
             assert result.exit_code == 0
+            assert "No specs found" in result.output
 
-            # Check both files generated
-            assert Path("tests/test_feat_a.py").exists()
-            assert Path("tests/test_feat_b.py").exists()
+    def test_skeleton_invalid_schema(self) -> None:
+        """Test skeleton command with invalid spec schema."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            features_dir = Path("features")
+            features_dir.mkdir()
+            feature_dir = features_dir / "invalid"
+            feature_dir.mkdir()
+            (feature_dir / "_feature.md").write_text("---\nfeature_id: INVALID\n---")
 
-    def test_skeleton_shows_next_steps(self, sample_features_json: dict) -> None:
+            result = runner.invoke(cli, ["test", "skeleton"])
+            assert result.exit_code == 1
+            assert "Error loading" in result.output
+
+    def test_skeleton_shows_next_steps(self) -> None:
         """Test skeleton command shows next steps."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            Path("features.json").write_text(json.dumps(sample_features_json))
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
 
-            result = runner.invoke(cli, ["test", "skeleton"])
+            result = runner.invoke(cli, ["test", "skeleton"], input="n\n")
             assert result.exit_code == 0
             assert "Next steps:" in result.output
             assert "pytest" in result.output
+            assert "Create this test file (tests/auth/test_login.py)?" in result.output
+            assert "Skipped test creation." in result.output
+            assert not Path("tests/auth/test_login.py").exists()
+
+    def test_skeleton_preview_output(self) -> None:
+        """Test skeleton command outputs a preview."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            result = runner.invoke(cli, ["test", "skeleton"], input="n\n")
+            assert result.exit_code == 0
+            assert "File: tests/auth/test_login.py" in result.output
+            assert "Scenario IDs: login-success" in result.output
+            assert "Steps (first scenario): 3" in result.output
+            assert "Status: SKIPPED (not implemented)" in result.output
+            assert "Preview:" in result.output
+
+    def test_skeleton_skips_existing_file(self) -> None:
+        """Test skeleton command skips existing files."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            first_run = runner.invoke(cli, ["test", "skeleton"], input="y\n")
+            assert first_run.exit_code == 0
+            generated_file = Path("tests/auth/test_login.py")
+            assert generated_file.exists()
+            initial_content = generated_file.read_text()
+
+            second_run = runner.invoke(cli, ["test", "skeleton"], input="y\n")
+            assert second_run.exit_code == 0
+            assert (
+                "Skipped existing file: tests/auth/test_login.py" in second_run.output
+            )
+            assert "No new skeleton tests to generate." in second_run.output
+            assert "Create this test file" not in second_run.output
+            assert generated_file.read_text() == initial_content
+
+    def test_skeleton_tests_are_skipped_in_pytest(self) -> None:
+        """Integration test: verify skeleton tests run as SKIPPED in pytest."""
+        import subprocess
+
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            # Generate skeleton test
+            result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
+            assert result.exit_code == 0
+            generated_file = Path("tests/auth/test_login.py")
+            assert generated_file.exists()
+
+            # Run pytest on the generated skeleton
+            pytest_result = subprocess.run(
+                ["pytest", str(generated_file), "-v"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            # Verify the test was SKIPPED, not failed
+            output = pytest_result.stdout + pytest_result.stderr
+            assert "SKIPPED" in output or "skipped" in output.lower()
+            assert "FAILED" not in output
+            # Pytest exit code 0 means all tests passed/skipped (no failures)
+            assert pytest_result.returncode == 0
+            # Check for the skip reason (may be truncated in verbose output)
+            assert "Skeleton test" in output
 
 
 class TestFeaturesGroup:
@@ -329,95 +423,219 @@ class TestFeaturesGroup:
         result = runner.invoke(cli, ["features", "--help"])
         assert result.exit_code == 0
         assert "validate" in result.output
+        assert "list" in result.output
+        assert "stats" in result.output
 
 
 class TestValidateCommand:
     """Tests for 'specleft features validate' command."""
 
-    @pytest.fixture
-    def valid_features_json(self) -> dict:
-        """Valid features.json for testing."""
-        return {
-            "version": "1.0",
-            "features": [
-                {
-                    "id": "VALID-001",
-                    "name": "Valid Feature",
-                    "scenarios": [
-                        {
-                            "id": "valid-scenario",
-                            "name": "Valid Scenario",
-                            "priority": "high",
-                            "steps": [{"type": "given", "description": "something"}],
-                        },
-                    ],
-                },
-            ],
-        }
-
-    def test_validate_valid_file(self, valid_features_json: dict) -> None:
-        """Test validate command with valid features.json."""
+    def test_validate_valid_dir(self) -> None:
+        """Test validate command with valid specs directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            Path("features.json").write_text(json.dumps(valid_features_json))
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
 
             result = runner.invoke(cli, ["features", "validate"])
             assert result.exit_code == 0
             assert "is valid" in result.output
             assert "Features: 1" in result.output
+            assert "Stories: 1" in result.output
             assert "Scenarios: 1" in result.output
+            assert "Steps: 3" in result.output
 
-    def test_validate_missing_file(self) -> None:
-        """Test validate command when file is missing."""
+    def test_validate_missing_dir(self) -> None:
+        """Test validate command when directory is missing."""
         runner = CliRunner()
         with runner.isolated_filesystem():
             result = runner.invoke(cli, ["features", "validate"])
             assert result.exit_code == 1
-            assert "File not found" in result.output
+            assert "Directory not found" in result.output
 
-    def test_validate_invalid_json(self) -> None:
-        """Test validate command with invalid JSON."""
+    def test_validate_invalid_dir(self) -> None:
+        """Test validate command with invalid specs directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            Path("features.json").write_text("not valid json")
-
-            result = runner.invoke(cli, ["features", "validate"])
-            assert result.exit_code == 1
-            assert "Validation failed" in result.output
-
-    def test_validate_invalid_schema(self) -> None:
-        """Test validate command with invalid schema."""
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            # Invalid feature ID (should be uppercase)
-            invalid = {
-                "version": "1.0",
-                "features": [
-                    {
-                        "id": "invalid-lowercase",  # Should match ^[A-Z0-9-]+$
-                        "name": "Feature",
-                        "scenarios": [],
-                    },
-                ],
-            }
-            Path("features.json").write_text(json.dumps(invalid))
+            Path("features").mkdir()
 
             result = runner.invoke(cli, ["features", "validate"])
             assert result.exit_code == 1
             assert "Validation failed" in result.output
 
-    def test_validate_custom_file_path(self, valid_features_json: dict) -> None:
-        """Test validate command with custom file path."""
+    def test_validate_custom_dir(self) -> None:
+        """Test validate command with custom directory."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            Path("config").mkdir()
-            Path("config/specs.json").write_text(json.dumps(valid_features_json))
+            features_dir = _create_feature_specs(
+                Path("."),
+                feature_id="payments",
+                story_id="refunds",
+                scenario_id="refund",
+                features_dir_name="specs",
+            )
 
             result = runner.invoke(
-                cli, ["features", "validate", "--file", "config/specs.json"]
+                cli, ["features", "validate", "--dir", str(features_dir)]
             )
             assert result.exit_code == 0
             assert "is valid" in result.output
+
+
+class TestFeaturesListCommand:
+    """Tests for 'specleft features list' command."""
+
+    def test_features_list_outputs_tree(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            result = runner.invoke(cli, ["features", "list"])
+            assert result.exit_code == 0
+            assert "Features (1):" in result.output
+            assert "- auth: Auth Feature" in result.output
+            assert "- login: Login Story" in result.output
+            assert "- login-success: Login Success" in result.output
+
+    def test_features_list_missing_dir(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(cli, ["features", "list"])
+            assert result.exit_code == 1
+            assert "Directory not found" in result.output
+
+
+class TestFeaturesStatsCommand:
+    """Tests for 'specleft features stats' command."""
+
+    def test_features_stats_outputs_summary(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                include_test_data=True,
+            )
+
+            result = runner.invoke(cli, ["features", "stats"])
+            assert result.exit_code == 0
+            # New format includes test coverage stats
+            assert "Test Coverage Stats" in result.output
+            assert "Pytest Tests:" in result.output
+            assert "Total pytest tests discovered:" in result.output
+            assert "Tests with @specleft:" in result.output
+            # Specifications section
+            assert "Specifications:" in result.output
+            assert "Features: 1" in result.output
+            assert "Stories: 1" in result.output
+            assert "Scenarios: 1" in result.output
+            assert "Steps: 3" in result.output
+            assert "Parameterized scenarios: 1" in result.output
+            assert "Tags:" in result.output
+            # Coverage section
+            assert "Coverage:" in result.output
+            assert "Scenarios with tests:" in result.output
+            assert "Scenarios without tests:" in result.output
+
+    def test_features_stats_missing_dir(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(cli, ["features", "stats"])
+            assert result.exit_code == 1
+            assert "Directory not found" in result.output
+
+    def test_features_stats_with_matching_tests(self) -> None:
+        """Test stats when there are tests that match specs."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Create spec
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            # Create a test file with @specleft decorator matching the spec
+            tests_dir = Path("tests")
+            tests_dir.mkdir()
+            test_file = tests_dir / "test_auth.py"
+            test_file.write_text(
+                """
+from specleft import specleft
+
+@specleft(feature_id="auth", scenario_id="login-success")
+def test_login_success():
+    pass
+"""
+            )
+
+            result = runner.invoke(cli, ["features", "stats"])
+            assert result.exit_code == 0
+            assert "Scenarios with tests: 1" in result.output
+            assert "Scenarios without tests: 0" in result.output
+            assert "Coverage: 100.0%" in result.output
+
+    def test_features_stats_with_partial_coverage(self) -> None:
+        """Test stats when some scenarios have tests and some don't."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            # Use the helper to create proper spec structure
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            # Add a second scenario manually
+            scenario_dir = Path("features/auth/login")
+            (scenario_dir / "login-failure.md").write_text(
+                """---
+scenario_id: login-failure
+name: Login Failure
+priority: high
+---
+## Scenario: Login Failure
+Given a user exists
+When the user logs in with wrong password
+Then access is denied
+"""
+            )
+
+            # Create test file with only one @specleft test
+            tests_dir = Path("tests")
+            tests_dir.mkdir()
+            test_file = tests_dir / "test_auth.py"
+            test_file.write_text(
+                """
+from specleft import specleft
+
+@specleft(feature_id="auth", scenario_id="login-success")
+def test_login_success():
+    pass
+"""
+            )
+
+            result = runner.invoke(cli, ["features", "stats"])
+            assert result.exit_code == 0
+            assert "Scenarios: 2" in result.output
+            assert "Scenarios with tests: 1" in result.output
+            assert "Scenarios without tests: 1" in result.output
+            assert "Coverage: 50.0%" in result.output
+            # Should list the uncovered scenario
+            assert "login-failure" in result.output
 
 
 class TestReportCommand:
@@ -484,7 +702,6 @@ class TestReportCommand:
         """Test report command generates HTML file."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create results directory and file
             results_dir = Path(".specleft/results")
             results_dir.mkdir(parents=True)
             results_file = results_dir / "results_20250113_100000.json"
@@ -494,10 +711,8 @@ class TestReportCommand:
             assert result.exit_code == 0
             assert "Report generated" in result.output
 
-            # Check HTML file exists
             assert Path("report.html").exists()
 
-            # Check HTML content
             content = Path("report.html").read_text()
             assert "SpecLeft Test Report" in content
             assert "TEST-001" in content
@@ -507,7 +722,6 @@ class TestReportCommand:
         """Test report command with custom output path."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create results
             results_dir = Path(".specleft/results")
             results_dir.mkdir(parents=True)
             results_file = results_dir / "results_20250113_100000.json"
@@ -521,7 +735,6 @@ class TestReportCommand:
         """Test report command with specific results file."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create specific results file
             Path("my_results.json").write_text(json.dumps(sample_results))
 
             result = runner.invoke(cli, ["test", "report", "-r", "my_results.json"])
@@ -550,16 +763,13 @@ class TestReportCommand:
         """Test report command uses the latest results file when multiple exist."""
         runner = CliRunner()
         with runner.isolated_filesystem():
-            # Create results directory with multiple files
             results_dir = Path(".specleft/results")
             results_dir.mkdir(parents=True)
 
-            # Older file
             (results_dir / "results_20250101_100000.json").write_text(
                 json.dumps({**sample_results, "run_id": "old-run"})
             )
 
-            # Newer file
             (results_dir / "results_20250113_100000.json").write_text(
                 json.dumps({**sample_results, "run_id": "new-run"})
             )
@@ -567,6 +777,5 @@ class TestReportCommand:
             result = runner.invoke(cli, ["test", "report"])
             assert result.exit_code == 0
 
-            # Check it used the newer file
             content = Path("report.html").read_text()
             assert "new-run" in content
