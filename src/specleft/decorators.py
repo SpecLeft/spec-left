@@ -12,7 +12,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, TypeVar, cast
+from typing import Any, TypedDict, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -36,22 +36,22 @@ class StepResult:
         return 0.0
 
 
-_test_context = threading.local()
+class _SpecleftContext(TypedDict):
+    steps: list[StepResult]
+    feature_id: str | None
+    scenario_id: str | None
+    in_specleft_test: bool
 
 
-def _get_context() -> dict[str, Any]:
-    if not hasattr(_test_context, "data"):
-        _test_context.data = {
-            "steps": [],
-            "feature_id": None,
-            "scenario_id": None,
-            "in_specleft_test": False,
-        }
-    return cast(dict[str, Any], _test_context.data)
+class _SpecleftThreadContext(threading.local):
+    data: _SpecleftContext
 
 
-def _reset_context() -> None:
-    _test_context.data = {
+_test_context = _SpecleftThreadContext()
+
+
+def _new_context() -> _SpecleftContext:
+    return {
         "steps": [],
         "feature_id": None,
         "scenario_id": None,
@@ -59,12 +59,24 @@ def _reset_context() -> None:
     }
 
 
+def _get_context() -> _SpecleftContext:
+    if not hasattr(_test_context, "data"):
+        _test_context.data = _new_context()
+    return _test_context.data
+
+
+def _reset_context() -> None:
+    _test_context.data = _new_context()
+
+
 def get_current_steps() -> list[StepResult]:
     """Return current step results for this test execution."""
     ctx = _get_context()
-    if "steps" not in ctx:
+    steps = ctx.get("steps")
+    if steps is None:
         ctx["steps"] = []
-    return cast(list[StepResult], ctx["steps"])
+        return ctx["steps"]
+    return steps
 
 
 def clear_steps() -> None:

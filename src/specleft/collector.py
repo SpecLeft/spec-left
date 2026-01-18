@@ -100,4 +100,5 @@ class ResultCollector:
         if not json_files:
             return None
         with json_files[-1].open() as file_obj:
-            return cast(dict[str, Any], json.load(file_obj))
+            data = cast(dict[str, Any], json.load(file_obj))
+            return data

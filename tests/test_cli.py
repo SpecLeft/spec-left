@@ -175,7 +175,7 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "--single-file"], input="y\n"
             )
             assert result.exit_code == 0
-            assert "Create this test file?" in result.output
+            assert "Create this test file (tests/test_generated.py)?" in result.output
             assert "Created:" in result.output
 
             generated_file = Path("tests/test_generated.py")
@@ -208,14 +208,14 @@ class TestSkeletonCommand:
             result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert result.exit_code == 0
 
-            generated_file = Path("tests/payments/charge.py")
+            generated_file = Path("tests/payments/test_charge.py")
             assert generated_file.exists()
 
             content = generated_file.read_text()
             assert "from specleft import specleft" in content
             assert 'feature_id="payments"' in content
             assert 'scenario_id="card-charge"' in content
-            assert "Create this test file?" in result.output
+            assert "Create this test file (tests/payments/test_charge.py)?" in result.output
 
     def test_skeleton_custom_output_dir(self) -> None:
         """Test skeleton command with custom output directory."""
@@ -233,9 +233,12 @@ class TestSkeletonCommand:
             )
             assert result.exit_code == 0
 
-            generated_file = Path("custom_tests/inventory/availability.py")
+            generated_file = Path("custom_tests/inventory/test_availability.py")
             assert generated_file.exists()
-            assert "Create this test file?" in result.output
+            assert (
+                "Create this test file (custom_tests/inventory/test_availability.py)?"
+                in result.output
+            )
 
     def test_skeleton_custom_features_dir(self) -> None:
         """Test skeleton command with custom features directory."""
@@ -253,8 +256,8 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "-f", str(features_dir)], input="y\n"
             )
             assert result.exit_code == 0
-            assert Path("tests/support/tickets.py").exists()
-            assert "Create this test file?" in result.output
+            assert Path("tests/support/test_tickets.py").exists()
+            assert "Create this test file (tests/support/test_tickets.py)?" in result.output
 
     def test_skeleton_with_parameterized_tests(self) -> None:
         """Test skeleton command generates parameterized tests correctly."""
@@ -319,9 +322,9 @@ class TestSkeletonCommand:
             assert result.exit_code == 0
             assert "Next steps:" in result.output
             assert "pytest" in result.output
-            assert "Create this test file?" in result.output
-            assert "Skipped." in result.output
-            assert not Path("tests/auth/login.py").exists()
+            assert "Create this test file (tests/auth/test_login.py)?" in result.output
+            assert "Skipped test creation." in result.output
+            assert not Path("tests/auth/test_login.py").exists()
 
     def test_skeleton_preview_output(self) -> None:
         """Test skeleton command outputs a preview."""
@@ -336,7 +339,7 @@ class TestSkeletonCommand:
 
             result = runner.invoke(cli, ["test", "skeleton"], input="n\n")
             assert result.exit_code == 0
-            assert "File: tests/auth/login.py" in result.output
+            assert "File: tests/auth/test_login.py" in result.output
             assert "Scenario IDs: login-success" in result.output
             assert "Steps (first scenario): 3" in result.output
             assert "Status: SKIPPED (not implemented)" in result.output
@@ -355,15 +358,15 @@ class TestSkeletonCommand:
 
             first_run = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert first_run.exit_code == 0
-            generated_file = Path("tests/auth/login.py")
+            generated_file = Path("tests/auth/test_login.py")
             assert generated_file.exists()
             initial_content = generated_file.read_text()
 
             second_run = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert second_run.exit_code == 0
-            assert "Skipped existing file: tests/auth/login.py" in second_run.output
+            assert "Skipped existing file: tests/auth/test_login.py" in second_run.output
             assert "No new skeleton tests to generate." in second_run.output
-            assert "Create this test file?" not in second_run.output
+            assert "Create this test file" not in second_run.output
             assert generated_file.read_text() == initial_content
 
     def test_skeleton_tests_are_skipped_in_pytest(self) -> None:
@@ -382,7 +385,7 @@ class TestSkeletonCommand:
             # Generate skeleton test
             result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert result.exit_code == 0
-            generated_file = Path("tests/auth/login.py")
+            generated_file = Path("tests/auth/test_login.py")
             assert generated_file.exists()
 
             # Run pytest on the generated skeleton
@@ -560,13 +563,15 @@ class TestFeaturesStatsCommand:
             tests_dir = Path("tests")
             tests_dir.mkdir()
             test_file = tests_dir / "test_auth.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
 
             result = runner.invoke(cli, ["features", "stats"])
             assert result.exit_code == 0
@@ -588,7 +593,8 @@ def test_login_success():
 
             # Add a second scenario manually
             scenario_dir = Path("features/auth/login")
-            (scenario_dir / "login-failure.md").write_text("""---
+            (scenario_dir / "login-failure.md").write_text(
+                """---
 scenario_id: login-failure
 name: Login Failure
 priority: high
@@ -597,19 +603,22 @@ priority: high
 Given a user exists
 When the user logs in with wrong password
 Then access is denied
-""")
+"""
+            )
 
             # Create test file with only one @specleft test
             tests_dir = Path("tests")
             tests_dir.mkdir()
             test_file = tests_dir / "test_auth.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
 
             result = runner.invoke(cli, ["features", "stats"])
             assert result.exit_code == 0

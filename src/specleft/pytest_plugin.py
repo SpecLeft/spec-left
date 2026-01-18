@@ -4,11 +4,44 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, TypedDict, cast
 
 import pytest
 
 from specleft.decorators import get_current_steps
+from specleft.schema import FeatureSpec, ScenarioSpec, SpecsConfig
+
+
+class SpecleftMetadata(TypedDict, total=False):
+    feature_id: str
+    scenario_id: str
+    test_name: str
+    original_name: str
+    nodeid: str
+    is_parameterized: bool
+    parameters: dict[str, Any]
+    feature_name: str | None
+    scenario_name: str | None
+    tags: list[str]
+
+
+class _SpecleftConfig(Protocol):
+    _specleft_results: list[dict[str, Any]]
+    _specleft_start_time: datetime
+    _specleft_specs_config: SpecsConfig | None
+
+
+class _SpecleftItem(Protocol):
+    _specleft_metadata: SpecleftMetadata
+    config: pytest.Config
+
+
+def _as_specleft_config(config: pytest.Config) -> _SpecleftConfig:
+    return cast(_SpecleftConfig, config)
+
+
+def _as_specleft_item(item: pytest.Item) -> _SpecleftItem:
+    return cast(_SpecleftItem, item)
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -77,9 +110,10 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    config._specleft_results = []  # type: ignore[attr-defined]
-    config._specleft_start_time = datetime.now()  # type: ignore[attr-defined]
-    config._specleft_specs_config = None  # type: ignore[attr-defined]
+    specleft_config = _as_specleft_config(config)
+    specleft_config._specleft_results = []
+    specleft_config._specleft_start_time = datetime.now()
+    specleft_config._specleft_specs_config = None
 
     config.addinivalue_line(
         "markers",
@@ -88,7 +122,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     # Load specs and register dynamic markers from scenario tags
     specs_config = _load_specs_config(config)
-    config._specleft_specs_config = specs_config  # type: ignore[attr-defined]
+    specleft_config._specleft_specs_config = specs_config
 
     if specs_config:
         # Register tag-based markers from scenarios
@@ -114,6 +148,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_collection_modifyitems(
     session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
 ) -> None:
+    specleft_config = _as_specleft_config(config)
     tag_filters = {
         tag.strip()
         for tag in (config.getini("specleft_tag") or [])
@@ -139,7 +174,7 @@ def pytest_collection_modifyitems(
     )
 
     specs_config = _load_specs_config(config)
-    config._specleft_specs_config = specs_config  # type: ignore[attr-defined]
+    specleft_config._specleft_specs_config = specs_config
 
     if not specs_config and use_filters:
         for item in items:
@@ -173,7 +208,8 @@ def pytest_collection_modifyitems(
         if feature_id is None or scenario_id is None:
             continue
 
-        item._specleft_metadata = {  # type: ignore[attr-defined]
+        specleft_item = _as_specleft_item(item)
+        specleft_item._specleft_metadata = {
             "feature_id": feature_id,
             "scenario_id": scenario_id,
             "test_name": item.name,
@@ -217,7 +253,7 @@ def pytest_collection_modifyitems(
                 )
             )
         else:
-            item._specleft_metadata.update(  # type: ignore[attr-defined]
+            specleft_item._specleft_metadata.update(
                 {
                     "feature_name": feature.name if feature else None,
                     "scenario_name": scenario.name if scenario else None,
@@ -231,7 +267,7 @@ def _sanitize_marker_name(tag: str) -> str:
     return tag.replace("-", "_")
 
 
-def _collect_all_tags(specs_config: Any) -> set[str]:
+def _collect_all_tags(specs_config: SpecsConfig) -> set[str]:
     """Collect all unique tags from all scenarios in specs."""
     tags: set[str] = set()
     for feature in specs_config.features:
@@ -241,7 +277,7 @@ def _collect_all_tags(specs_config: Any) -> set[str]:
     return tags
 
 
-def _load_specs_config(config: pytest.Config) -> Any | None:
+def _load_specs_config(config: pytest.Config) -> SpecsConfig | None:
     features_dir = config.getini("specleft_features_dir") or "features"
     search_roots = [
         Path(str(config.rootpath)),
@@ -275,8 +311,8 @@ def _load_specs_config(config: pytest.Config) -> Any | None:
 
 
 def _find_scenario(
-    specs_config: Any, scenario_id: str
-) -> tuple[Any | None, Any | None]:
+    specs_config: SpecsConfig, scenario_id: str
+) -> tuple[ScenarioSpec | None, FeatureSpec | None]:
     for feature in specs_config.features:
         for story in feature.stories:
             for scenario in story.scenarios:
@@ -288,7 +324,7 @@ def _find_scenario(
 def _matches_filters(
     feature_id: str,
     scenario_id: str,
-    scenario: Any | None,
+    scenario: ScenarioSpec | None,
     tag_filters: set[str],
     priority_filters: set[str],
     feature_filters: set[str],
@@ -315,7 +351,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
     outcome = yield
     report = outcome.get_result()
 
-    metadata = getattr(item, "_specleft_metadata", None)
+    metadata = cast(SpecleftMetadata | None, getattr(item, "_specleft_metadata", None))
     if metadata is None:
         return
 
@@ -335,7 +371,8 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
             "skip_reason": skip_reason,
             "steps": [],
         }
-        item.config._specleft_results.append(result)  # type: ignore[attr-defined]
+        specleft_config = _as_specleft_config(item.config)
+        specleft_config._specleft_results.append(result)
         return
 
     # Capture passed/failed tests during call phase
@@ -360,12 +397,14 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) ->
             for step in steps
         ],
     }
-    item.config._specleft_results.append(result)  # type: ignore[attr-defined]
+    specleft_config = _as_specleft_config(item.config)
+    specleft_config._specleft_results.append(result)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     config = session.config
-    results = getattr(config, "_specleft_results", [])
+    specleft_config = _as_specleft_config(config)
+    results = specleft_config._specleft_results
 
     if not results:
         return

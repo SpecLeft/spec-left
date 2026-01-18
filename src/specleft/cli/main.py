@@ -177,9 +177,12 @@ def _extract_specleft_scenario_id(decorator: ast.expr) -> str | None:
     if isinstance(decorator, ast.Call):
         func = decorator.func
         # Check if it's specleft(...) or module.specleft(...)
-        if isinstance(func, ast.Name) and func.id == "specleft":
-            return _get_scenario_id_from_call(decorator)
-        elif isinstance(func, ast.Attribute) and func.attr == "specleft":
+        if (
+            isinstance(func, ast.Name)
+            and func.id == "specleft"
+            or isinstance(func, ast.Attribute)
+            and func.attr == "specleft"
+        ):
             return _get_scenario_id_from_call(decorator)
     return None
 
@@ -438,7 +441,9 @@ def test() -> None:
     is_flag=True,
     help="Skip the preview of the generated skeleton tests before creating files.",
 )
-def skeleton(features_dir: str, output_dir: str, single_file: bool, skip_preview: bool) -> None:
+def skeleton(
+    features_dir: str, output_dir: str, single_file: bool, skip_preview: bool
+) -> None:
     """Generate skeleton test files from Markdown feature specs.
 
     Reads the features directory specification and generates pytest test files
@@ -497,7 +502,10 @@ def skeleton(features_dir: str, output_dir: str, single_file: bool, skip_preview
     for i, plan in enumerate(plan_result.plans):
         if not skip_preview:
             _render_skeleton_preview(plan)
-            if not click.confirm(f"{i+1}/{len(plan_result.plans)} Create this test file ({plan.output_path})?", default=False):
+            if not click.confirm(
+                f"{i+1}/{len(plan_result.plans)} Create this test file ({plan.output_path})?",
+                default=False,
+            ):
                 click.secho("Skipped test creation.", fg="yellow")
                 continue
 
@@ -757,7 +765,9 @@ def features_stats(features_dir: str, tests_dir: str) -> None:
             if stats.scenario_count > 0
             else 0
         )
-        colour = "green" if coverage_pct >= 80 else "yellow" if coverage_pct >= 50 else "red"
+        colour = (
+            "green" if coverage_pct >= 80 else "yellow" if coverage_pct >= 50 else "red"
+        )
         click.echo(f"  Scenarios with tests: {len(scenarios_with_tests)}")
         click.echo(f"  Scenarios without tests: {len(scenarios_without_tests)}")
         click.secho(f"  Coverage: {coverage_pct:.1f}%", fg=colour)
