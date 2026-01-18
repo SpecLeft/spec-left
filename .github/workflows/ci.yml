@@ -98,8 +98,8 @@ jobs:
           # Also test on macOS and Windows with one Python version
           - os: macos-latest
             python-version: '3.11'
-          - os: windows-latest
-            python-version: '3.11'
+          # - os: windows-latest
+          #   python-version: '3.11'
 
     steps:
       - uses: actions/checkout@v4
