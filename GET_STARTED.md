@@ -12,7 +12,7 @@ No prior setup. No commitment. No surprises.
 
 ---
 
-## Minute 0–5: Install and run your existing tests
+## Install and run your existing tests
 
 Install SpecLeft:
 

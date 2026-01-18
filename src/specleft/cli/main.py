@@ -250,7 +250,7 @@ def _load_skeleton_template() -> Template:
 
 
 def _story_output_path(output_path: Path, feature_id: str, story_id: str) -> Path:
-    return output_path / feature_id / f"{story_id}.py"
+    return output_path / feature_id / f"test_{story_id}.py"
 
 
 def _feature_with_story(feature: FeatureSpec, story: StorySpec) -> FeatureSpec:
@@ -433,7 +433,12 @@ def test() -> None:
     is_flag=True,
     help="Generate all tests in a single file (test_generated.py).",
 )
-def skeleton(features_dir: str, output_dir: str, single_file: bool) -> None:
+@click.option(
+    "--skip-preview",
+    is_flag=True,
+    help="Skip the preview of the generated skeleton tests before creating files.",
+)
+def skeleton(features_dir: str, output_dir: str, single_file: bool, skip_preview: bool) -> None:
     """Generate skeleton test files from Markdown feature specs.
 
     Reads the features directory specification and generates pytest test files
@@ -479,25 +484,31 @@ def skeleton(features_dir: str, output_dir: str, single_file: bool) -> None:
 
     summary = _summarize_skeleton_plans(plan_result.plans)
 
-    click.echo("\nSkeleton generation plan:")
+    click.secho("\nSkeleton Generation Plan", fg="magenta", bold=True)
     click.echo(f"  Features: {summary.feature_count}")
     click.echo(f"  Stories: {summary.story_count}")
     click.echo(f"  Scenarios: {summary.scenario_count}")
     click.echo(f"  Files to create: {len(summary.output_paths)}")
 
-    for plan in plan_result.plans:
-        _render_skeleton_preview(plan)
-        if not click.confirm("Create this test file?", default=False):
-            click.echo("Skipped.")
-            continue
+    click.secho("Planned test files:", fg="cyan")
+    for output_path in summary.output_paths:
+        click.echo(f"    - {output_path}")
+
+    for i, plan in enumerate(plan_result.plans):
+        if not skip_preview:
+            _render_skeleton_preview(plan)
+            if not click.confirm(f"{i+1}/{len(plan_result.plans)} Create this test file ({plan.output_path})?", default=False):
+                click.secho("Skipped test creation.", fg="yellow")
+                continue
 
         plan.output_path.parent.mkdir(parents=True, exist_ok=True)
         plan.output_path.write_text(plan.content)
-        click.secho(f"Created: {plan.output_path}", fg="green")
+        click.echo("")
+        click.echo(f"✅ Created: {plan.output_path}")
 
-    click.echo("\nNext steps:")
+    click.secho("\nNext steps:", fg="cyan", bold=True)
     click.echo(f"  1. Implement test logic in {output_dir}/")
-    click.echo("  2. Run tests: pytest")
+    click.echo(f"  2. Run tests: pytest {output_dir if output_dir else ''}/")
     click.echo("  3. View report: specleft test report")
 
 
