@@ -296,6 +296,14 @@
             overflow-x: auto;
         }
 
+        /* Skip Reason */
+        .skip-reason {
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+            font-style: italic;
+            margin-top: 0.25rem;
+        }
+
         /* Footer */
         footer {
             margin-top: 2rem;
@@ -411,6 +419,9 @@
                                 <span class="execution-name">{{ execution.test_name }}</span>
                                 <span class="execution-duration">{{ "%.3f"|format(execution.duration) }}s</span>
                             </div>
+                            {% if execution.status == 'skipped' and execution.skip_reason %}
+                            <div class="skip-reason">{{ execution.skip_reason }}</div>
+                            {% endif %}
                             {% if execution.tags and execution.tags | length > 0 %}
                             <div class="tags">
                                 {% for tag in execution.tags %}
