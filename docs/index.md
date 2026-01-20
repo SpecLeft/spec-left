@@ -8,10 +8,10 @@
 
 ## For AI Agents 🤖
 - **[AI Agents Guide](ai-agents-main.md)** - Optimized for programmatic adoption
-  - Installation verification
-  - Common workflows
-  - Programmatic API
-  - JSON output schemas
+  - Installation verification and contract checks
+  - Project fit and init dry-runs
+  - Skeleton previews and generation
+  - Programmatic API and JSON output schemas
 
 ## Workflows
 - [New Project](workflows/new-project.md) - Starting from scratch
