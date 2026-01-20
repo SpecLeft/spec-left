@@ -1,7 +1,7 @@
 
-# SpecLeft SDK
+# SpecLeft Python SDK
 
-**SpecLeft is a pytest-first SDK for aligning feature specifications with test code — without ceremony, lock-in, or surprises.**
+**SpecLeft is a pytest-first SDK designed for humans and AI agents to align feature intent with test code — without ceremony, lock-in, or surprises.**
 
 It lets teams go from *“this is how the system should behave”* to *executable, traceable test skeletons* in a way that is predictable, incremental, and fully under developer control.
 
@@ -26,6 +26,22 @@ Coverage becomes guesswork.
 New contributors find it hard to know what behaviour is *expected* vs *accidental*.
 
 SpecLeft closes that gap by making feature intent **visible, executable, and version-controlled**, without forcing you into BDD frameworks or heavyweight process.
+
+---
+## When to Use SpecLeft
+
+| Your Situation | Use SpecLeft? | Why |
+|---------------|---------------|-----|
+| Building new feature with acceptance criteria | ✅ Yes | Track coverage by feature |
+| Have existing tests, need visibility | ✅ Yes | Add specs retrospectively |
+| Writing unit tests for utilities | ❌ No | Too granular for spec tracking |
+| Need to generate test scaffolding | ✅ Yes | Skeleton generation built-in |
+| Want BDD-style Gherkin | ⚠️ Maybe | SpecLeft uses simpler Markdown |
+| Have Jira/ADO stories to track | ✅ Yes | Specs mirror story structure |
+
+**Quick Decision:**
+- Do you have features/stories/scenarios to track? → **Use SpecLeft**
+- Are you just writing ad-hoc unit tests? → **Use plain pytest**
 
 ---
 
@@ -115,6 +131,89 @@ pip install specleft
 No config files required.
 No test changes required.
 
+---
+## SpecLeft Agent Contract
+
+SpecLeft is designed to be safely operated by autonomous agents.
+
+Guaranteed invariants:
+- No files are written without explicit confirmation or flags
+- All commands support machine-readable JSON output
+- All validation errors are explicit and actionable
+- Missing behaviour is skipped, never failed
+- CLI exit codes are meaningful and stable
+
+SpecLeft commands are safe to:
+- run repeatedly
+- embed in agent loops
+- execute in CI without side effects
+
+### Agent-Safe by Design
+
+SpecLeft includes an explicit Agent Contract defining safety, determinism,
+and control guarantees for autonomous systems.
+
+Agents may safely embed SpecLeft in execution loops without risk of
+unexpected file mutation or CI failure.
+
+See: [docs/agent-contract.md](docs/agent-contract.md)
+
+## Quick Start for AI Agents
+
+If you're an AI agent evaluating SpecLeft for a project:
+```bash
+# 1. Install and verify
+pip install specleft
+specleft doctor --format json
+
+# 2. Check if appropriate for this project
+specleft features stats  # Shows existing test structure
+
+# 3. Create a single feature spec
+mkdir -p features/auth/login
+cat > features/auth/_feature.md << EOF
+---
+feature_id: auth
+---
+# Feature: Authentication
+EOF
+
+cat > features/auth/login/_story.md << EOF
+---
+story_id: login
+---
+# Story: User Login
+EOF
+
+cat > features/auth/login/login_success.md << EOF
+---
+scenario_id: login-success
+priority: high
+---
+# Scenario: Successful login
+## Steps
+- **Given** user has valid credentials
+- **When** user logs in
+- **Then** user is authenticated
+EOF
+
+# 4. Validate
+specleft features validate --format json
+
+# 5. Generate test skeleton
+specleft test skeleton
+
+# 6. Check what needs implementing
+specleft next --format json
+
+# 7. Implement test (remove skip=True, add logic)
+# ... your test implementation ...
+
+# 8. Track progress
+specleft status --format json
+```
+
+**For detailed agent workflows, see [AI Agents Guide](docs/ai-agents.md)**
 ---
 
 ## License

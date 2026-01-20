@@ -23,6 +23,8 @@ def _create_feature_specs(
     scenario_id: str,
     include_test_data: bool = False,
     features_dir_name: str = "features",
+    scenario_priority: str = "high",
+    execution_time: str = "fast",
 ) -> Path:
     features_dir = base_dir / features_dir_name
     feature_dir = features_dir / feature_id
@@ -71,9 +73,9 @@ def _create_feature_specs(
         f"""
         ---
         scenario_id: {scenario_id}
-        priority: high
+        priority: {scenario_priority}
         tags: [smoke]
-        execution_time: fast
+        execution_time: {execution_time}
         ---
 
         # Scenario: {scenario_id.replace('-', ' ').title()}
@@ -135,6 +137,32 @@ class TestCLIBase:
         assert "SpecLeft" in result.output
         assert "test" in result.output
         assert "features" in result.output
+        assert "contract" in result.output
+
+
+class TestContractCommand:
+    """Tests for 'specleft contract' commands."""
+
+    def test_contract_json_output(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["contract", "--format", "json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.output)
+        assert payload["contract_version"] == "1.0"
+        assert payload["specleft_version"] == "0.2.0"
+        assert "guarantees" in payload
+
+    def test_contract_test_json_output(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["contract", "test", "--format", "json"])
+        assert result.exit_code == 0
+        output_lines = result.output.splitlines()
+        assert output_lines[0] == "Running contract tests..."
+        payload = json.loads("\n".join(output_lines[1:]))
+        assert payload["contract_version"] == "1.0"
+        assert payload["specleft_version"] == "0.2.0"
+        assert payload["passed"] is True
+        assert payload["checks"]
 
 
 class TestTestGroup:
@@ -175,8 +203,8 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "--single-file"], input="y\n"
             )
             assert result.exit_code == 0
-            assert "Create this test file (tests/test_generated.py)?" in result.output
-            assert "Created:" in result.output
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
 
             generated_file = Path("tests/test_generated.py")
             assert generated_file.exists()
@@ -207,6 +235,8 @@ class TestSkeletonCommand:
 
             result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert result.exit_code == 0
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
 
             generated_file = Path("tests/payments/test_charge.py")
             assert generated_file.exists()
@@ -215,10 +245,6 @@ class TestSkeletonCommand:
             assert "from specleft import specleft" in content
             assert 'feature_id="payments"' in content
             assert 'scenario_id="card-charge"' in content
-            assert (
-                "Create this test file (tests/payments/test_charge.py)?"
-                in result.output
-            )
 
     def test_skeleton_custom_output_dir(self) -> None:
         """Test skeleton command with custom output directory."""
@@ -235,13 +261,11 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "--output-dir", "custom_tests"], input="y\n"
             )
             assert result.exit_code == 0
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
 
             generated_file = Path("custom_tests/inventory/test_availability.py")
             assert generated_file.exists()
-            assert (
-                "Create this test file (custom_tests/inventory/test_availability.py)?"
-                in result.output
-            )
 
     def test_skeleton_custom_features_dir(self) -> None:
         """Test skeleton command with custom features directory."""
@@ -259,11 +283,9 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "-f", str(features_dir)], input="y\n"
             )
             assert result.exit_code == 0
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
             assert Path("tests/support/test_tickets.py").exists()
-            assert (
-                "Create this test file (tests/support/test_tickets.py)?"
-                in result.output
-            )
 
     def test_skeleton_with_parameterized_tests(self) -> None:
         """Test skeleton command generates parameterized tests correctly."""
@@ -281,6 +303,8 @@ class TestSkeletonCommand:
                 cli, ["test", "skeleton", "--single-file"], input="y\n"
             )
             assert result.exit_code == 0
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
 
             content = Path("tests/test_generated.py").read_text()
             assert "@pytest.mark.parametrize" in content
@@ -325,11 +349,9 @@ class TestSkeletonCommand:
             )
 
             result = runner.invoke(cli, ["test", "skeleton"], input="n\n")
-            assert result.exit_code == 0
-            assert "Next steps:" in result.output
-            assert "pytest" in result.output
-            assert "Create this test file (tests/auth/test_login.py)?" in result.output
-            assert "Skipped test creation." in result.output
+            assert result.exit_code == 2
+            assert "Confirm creation?" in result.output
+            assert "Cancelled" in result.output
             assert not Path("tests/auth/test_login.py").exists()
 
     def test_skeleton_preview_output(self) -> None:
@@ -344,12 +366,14 @@ class TestSkeletonCommand:
             )
 
             result = runner.invoke(cli, ["test", "skeleton"], input="n\n")
-            assert result.exit_code == 0
+            assert result.exit_code == 2
             assert "File: tests/auth/test_login.py" in result.output
             assert "Scenario IDs: login-success" in result.output
             assert "Steps (first scenario): 3" in result.output
             assert "Status: SKIPPED (not implemented)" in result.output
             assert "Preview:" in result.output
+            assert "Confirm creation?" in result.output
+            assert "Cancelled" in result.output
 
     def test_skeleton_skips_existing_file(self) -> None:
         """Test skeleton command skips existing files."""
@@ -370,11 +394,7 @@ class TestSkeletonCommand:
 
             second_run = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert second_run.exit_code == 0
-            assert (
-                "Skipped existing file: tests/auth/test_login.py" in second_run.output
-            )
             assert "No new skeleton tests to generate." in second_run.output
-            assert "Create this test file" not in second_run.output
             assert generated_file.read_text() == initial_content
 
     def test_skeleton_tests_are_skipped_in_pytest(self) -> None:
@@ -393,6 +413,8 @@ class TestSkeletonCommand:
             # Generate skeleton test
             result = runner.invoke(cli, ["test", "skeleton"], input="y\n")
             assert result.exit_code == 0
+            assert "Confirm creation?" in result.output
+            assert "✓ Created 1 test files" in result.output
             generated_file = Path("tests/auth/test_login.py")
             assert generated_file.exists()
 
@@ -448,6 +470,23 @@ class TestValidateCommand:
             assert "Stories: 1" in result.output
             assert "Scenarios: 1" in result.output
             assert "Steps: 3" in result.output
+
+    def test_validate_json_output(self) -> None:
+        """Test validate command JSON output."""
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            result = runner.invoke(cli, ["features", "validate", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            assert payload["valid"] is True
+            assert payload["features"] == 1
 
     def test_validate_missing_dir(self) -> None:
         """Test validate command when directory is missing."""
@@ -506,12 +545,274 @@ class TestFeaturesListCommand:
             assert "- login: Login Story" in result.output
             assert "- login-success: Login Success" in result.output
 
+    def test_features_list_json_output(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+
+            result = runner.invoke(cli, ["features", "list", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            assert payload["summary"]["features"] == 1
+            assert payload["features"][0]["feature_id"] == "auth"
+
     def test_features_list_missing_dir(self) -> None:
         runner = CliRunner()
         with runner.isolated_filesystem():
             result = runner.invoke(cli, ["features", "list"])
             assert result.exit_code == 1
             assert "Directory not found" in result.output
+
+
+class TestDoctorCommand:
+    """Tests for 'specleft doctor' command."""
+
+    def test_doctor_json_includes_version(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["doctor", "--format", "json"])
+        assert result.exit_code in {0, 1}
+        payload = json.loads(result.output)
+        assert payload["version"] == "0.2.0"
+        assert "healthy" in payload
+        assert "checks" in payload
+
+    def test_doctor_table_output(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["doctor"])
+        assert result.exit_code in {0, 1}
+        assert "Checking SpecLeft installation" in result.output
+        assert "specleft CLI available" in result.output
+
+    def test_doctor_verbose_output(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["doctor", "--verbose"])
+        assert result.exit_code in {0, 1}
+        assert "pytest plugin" in result.output
+
+
+class TestStatusCommand:
+    """Tests for 'specleft status' command."""
+
+    def test_status_json_includes_execution_time(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                execution_time="slow",
+            )
+            result = runner.invoke(cli, ["status", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            scenarios = payload["features"][0]["stories"][0]["scenarios"]
+            assert scenarios[0]["execution_time"] == "slow"
+
+    def test_status_unimplemented_table_output(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            result = runner.invoke(cli, ["status", "--unimplemented"])
+            assert result.exit_code == 0
+            assert "Unimplemented Scenarios" in result.output
+            assert "⚠ auth/login/login-success" in result.output
+
+    def test_status_filter_requires_valid_ids(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            result = runner.invoke(cli, ["status", "--feature", "missing"])
+            assert result.exit_code == 1
+            assert "Unknown feature ID" in result.output
+
+    def test_status_treats_missing_test_file_as_skipped(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            result = runner.invoke(cli, ["status", "--format", "json"])
+            payload = json.loads(result.output)
+            scenario = payload["features"][0]["stories"][0]["scenarios"][0]
+            assert scenario["status"] == "skipped"
+            assert "test_login.py" in scenario["test_file"]
+
+    def test_status_marks_skipped_when_decorator_skip_true(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            tests_dir = Path("tests") / "auth"
+            tests_dir.mkdir(parents=True)
+            (tests_dir / "test_login.py").write_text(
+                """
+from specleft import specleft
+
+@specleft(feature_id="auth", scenario_id="login-success", skip=True)
+def test_login_success():
+    pass
+"""
+            )
+
+            result = runner.invoke(cli, ["status", "--format", "json"])
+            scenario = json.loads(result.output)["features"][0]["stories"][0][
+                "scenarios"
+            ][0]
+            assert scenario["status"] == "skipped"
+            assert scenario["reason"] == "Not implemented"
+
+    def test_status_marks_implemented_when_skip_removed(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            tests_dir = Path("tests") / "auth"
+            tests_dir.mkdir(parents=True)
+            (tests_dir / "test_login.py").write_text(
+                """
+from specleft import specleft
+
+@specleft(feature_id="auth", scenario_id="login-success")
+def test_login_success():
+    pass
+"""
+            )
+
+            result = runner.invoke(cli, ["status", "--format", "json"])
+            scenario = json.loads(result.output)["features"][0]["stories"][0][
+                "scenarios"
+            ][0]
+            assert scenario["status"] == "implemented"
+
+
+class TestNextCommand:
+    """Tests for 'specleft next' command."""
+
+    def test_next_json_output(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            result = runner.invoke(cli, ["next", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            assert payload["showing"] == 1
+
+    def test_next_json_omits_execution_time(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                execution_time="slow",
+            )
+            result = runner.invoke(cli, ["next", "--format", "json"])
+            payload = json.loads(result.output)
+            scenario = payload["tests"][0]
+            assert "execution_time" not in scenario
+
+    def test_next_respects_priority_and_limit(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                scenario_priority="low",
+            )
+            _create_feature_specs(
+                Path("."),
+                feature_id="payments",
+                story_id="refunds",
+                scenario_id="issue-refund",
+                scenario_priority="critical",
+            )
+            result = runner.invoke(cli, ["next", "--format", "json", "--limit", "1"])
+            payload = json.loads(result.output)
+            assert payload["showing"] == 1
+            assert payload["tests"][0]["scenario_id"] == "issue-refund"
+
+    def test_next_filters_by_priority(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                scenario_priority="high",
+            )
+            _create_feature_specs(
+                Path("."),
+                feature_id="payments",
+                story_id="refunds",
+                scenario_id="issue-refund",
+                scenario_priority="low",
+            )
+            result = runner.invoke(
+                cli, ["next", "--format", "json", "--priority", "high"]
+            )
+            payload = json.loads(result.output)
+            assert payload["showing"] == 1
+            assert payload["tests"][0]["scenario_id"] == "login-success"
+
+    def test_next_outputs_success_when_all_implemented(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+            )
+            tests_dir = Path("tests") / "auth"
+            tests_dir.mkdir(parents=True)
+            (tests_dir / "test_login.py").write_text(
+                """
+from specleft import specleft
+
+@specleft(feature_id="auth", scenario_id="login-success")
+def test_login_success():
+    pass
+"""
+            )
+            result = runner.invoke(cli, ["next"])
+            assert result.exit_code == 0
+            assert "All scenarios are implemented" in result.output
 
 
 class TestFeaturesStatsCommand:
@@ -547,6 +848,23 @@ class TestFeaturesStatsCommand:
             assert "Coverage:" in result.output
             assert "Scenarios with tests:" in result.output
             assert "Scenarios without tests:" in result.output
+
+    def test_features_stats_json_output(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            _create_feature_specs(
+                Path("."),
+                feature_id="auth",
+                story_id="login",
+                scenario_id="login-success",
+                include_test_data=True,
+            )
+
+            result = runner.invoke(cli, ["features", "stats", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            assert payload["specs"]["features"] == 1
+            assert payload["coverage"]["scenarios_without_tests"] >= 0
 
     def test_features_stats_missing_dir(self) -> None:
         runner = CliRunner()
@@ -638,57 +956,72 @@ def test_login_success():
             assert "login-failure" in result.output
 
 
+@pytest.fixture
+def sample_results() -> dict:
+    """Sample results JSON for testing."""
+    return {
+        "run_id": "2025-01-13T10:00:00",
+        "summary": {
+            "total_features": 1,
+            "total_scenarios": 2,
+            "total_executions": 3,
+            "passed": 2,
+            "failed": 1,
+            "skipped": 0,
+            "duration": 1.234,
+        },
+        "features": [
+            {
+                "feature_id": "TEST-001",
+                "feature_name": "Test Feature",
+                "scenarios": [
+                    {
+                        "scenario_id": "scenario-one",
+                        "scenario_name": "Scenario One",
+                        "is_parameterized": False,
+                        "executions": [
+                            {
+                                "test_name": "test_scenario_one",
+                                "status": "passed",
+                                "duration": 0.5,
+                                "steps": [
+                                    {
+                                        "description": "Given something",
+                                        "status": "passed",
+                                        "duration": 0.1,
+                                    }
+                                ],
+                            },
+                        ],
+                        "summary": {
+                            "total": 1,
+                            "passed": 1,
+                            "failed": 0,
+                            "skipped": 0,
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+
+
 class TestReportCommand:
     """Tests for 'specleft test report' command."""
 
-    @pytest.fixture
-    def sample_results(self) -> dict:
-        """Sample results JSON for testing."""
-        return {
-            "run_id": "2025-01-13T10:00:00",
-            "summary": {
-                "total_features": 1,
-                "total_scenarios": 2,
-                "total_executions": 3,
-                "passed": 2,
-                "failed": 1,
-                "skipped": 0,
-                "duration": 1.234,
-            },
-            "features": [
-                {
-                    "feature_id": "TEST-001",
-                    "feature_name": "Test Feature",
-                    "scenarios": [
-                        {
-                            "scenario_id": "scenario-one",
-                            "scenario_name": "Scenario One",
-                            "is_parameterized": False,
-                            "executions": [
-                                {
-                                    "test_name": "test_scenario_one",
-                                    "status": "passed",
-                                    "duration": 0.5,
-                                    "steps": [
-                                        {
-                                            "description": "Given something",
-                                            "status": "passed",
-                                            "duration": 0.1,
-                                        }
-                                    ],
-                                },
-                            ],
-                            "summary": {
-                                "total": 1,
-                                "passed": 1,
-                                "failed": 0,
-                                "skipped": 0,
-                            },
-                        },
-                    ],
-                },
-            ],
-        }
+    def test_report_json_output(self, sample_results: dict) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            results_dir = Path(".specleft/results")
+            results_dir.mkdir(parents=True)
+            results_file = results_dir / "results_20250113_100000.json"
+            results_file.write_text(json.dumps(sample_results))
+
+            result = runner.invoke(cli, ["test", "report", "--format", "json"])
+            assert result.exit_code == 0
+            payload = json.loads(result.output)
+            assert payload["status"] == "ok"
+            assert payload["summary"]["total_features"] == 1
 
     def test_report_no_results(self) -> None:
         """Test report command when no results exist."""
