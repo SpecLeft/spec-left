@@ -221,3 +221,9 @@ __marimo__/
 .vscode/
 .DS_Store
 prd.md
+features/feature-1-user-authentication.md
+features/feature-2-payments-and-refunds.md
+features/feature-3-subscriptions.md
+features/non-goals.md
+features/open-questions.md
+features/overview.md
