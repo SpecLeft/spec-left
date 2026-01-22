@@ -1,4 +1,3 @@
-
 # SpecLeft Python SDK
 
 **SpecLeft is a pytest-first SDK designed for humans and AI agents to align feature intent with test code — without ceremony, lock-in, or surprises.**
@@ -242,7 +241,11 @@ This means:
 - Sell SpecLeft itself as a product or service
 - Offer a hosted, managed, or commercial version of SpecLeft
 - Build a product that competes with SpecLeft or any product built using SpecLeft
+- Sell licensed artefacts that SpecLeft would process or enforce
 - Repackage SpecLeft as part of a paid developer tool, platform, or SaaS offering
+- Sell, license, or commercially distribute SpecLeft Artefacts.
+
+“SpecLeft Artefacts” means any rules, policies, enforcement configurations, scenario/spec bundles, or other machine-readable or structured content that is primarily intended to be used with, interpreted by, enforced by, or executed via the Software (including its CLI, plugins, or validators), whether distributed alone or as part of a bundle.
 
 ### 🤝 Why this license exists
 The goal of this license is to:

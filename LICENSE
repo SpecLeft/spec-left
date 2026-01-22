@@ -114,6 +114,17 @@ any warranty or condition, and the licensor will not be liable
 to you for any damages arising out of these terms or the use
 or nature of the software, under any kind of legal claim.***
 
+## Additional Restrictions
+In addition to the terms above, you may not sell, license, or
+commercially distribute SpecLeft Artefacts.
+
+"SpecLeft Artefacts" means any rules, policies, enforcement
+configurations, scenario/spec bundles, or other machine-readable
+or structured content that is primarily intended to be used with,
+interpreted by, enforced by, or executed via the software
+(including its CLI, plugins, or validators), whether distributed
+alone or as part of a bundle.
+
 ## Definitions
 The licensor is the individual or entity offering these terms,
 and the software is the software the licensor makes available
