@@ -133,6 +133,63 @@ Options:
   --output PATH         Output file for badge format
 ```
 
+## Enforce
+
+### `specleft enforce`
+
+Validate a cryptographic policy file and enforce coverage/priority rules against the repository's test specifications.
+
+```bash
+specleft enforce [POLICY_FILE] [OPTIONS]
+
+Arguments:
+  POLICY_FILE           Path to policy YAML file (default: .specleft/policy.yml)
+
+Options:
+  --dir PATH                  Path to features directory (default: features)
+  --format [table|json]       Output format (default: table)
+  --ignore-feature-id TEXT    Exclude feature from enforcement (Enforce+ tier only, repeatable)
+```
+
+#### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Policy satisfied - all checks passed |
+| 1 | Policy violated - missing scenarios or coverage below threshold |
+| 2 | License issue - invalid signature, expired, evaluation ended, or repo mismatch |
+
+#### Policy Types
+
+**Core Policy** - Priority-based enforcement only
+- Validates that scenarios with specified priorities are implemented
+- Does not support `--ignore-feature-id` flag
+
+**Enforce Policy** - Full enforcement with coverage thresholds
+- Includes priority enforcement
+- Adds coverage threshold validation
+- Supports `--ignore-feature-id` flag for excluding features
+- May include evaluation period for trial licenses
+
+#### Examples
+
+```bash
+# Enforce with default policy location
+specleft enforce
+
+# Enforce with specific policy file
+specleft enforce .specleft/policy-core.yml
+
+# Enforce with JSON output
+specleft enforce --format json
+
+# Exclude a feature from enforcement (Enforce tier only)
+specleft enforce --ignore-feature-id legacy-api
+
+# Exclude multiple features
+specleft enforce --ignore-feature-id legacy-api --ignore-feature-id deprecated-feature
+```
+
 ## Tests
 
 ### `specleft test skeleton`

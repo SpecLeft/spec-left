@@ -221,7 +221,7 @@ specleft next --format json
 specleft status --format json
 ```
 
-**For detailed agent workflows, see [AI Agents Guide](docs/ai-agents-main.md)**
+**For detailed agent workflows, see [AI Agents Guide](docs/ai-agents.md)**
 ---
 
 ## License
