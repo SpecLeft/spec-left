@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import webbrowser
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -340,7 +340,7 @@ def _build_skeleton_json(
         }
 
     return {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "dry_run": dry_run,
         "would_create": [_entry_payload(entry) for entry in would_create],
         "would_skip": [

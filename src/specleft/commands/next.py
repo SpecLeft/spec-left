@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +99,7 @@ def _build_next_json(
         tests.append(payload)
 
     output = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "tests": tests,
         "total_unimplemented": total_unimplemented,
         "showing": len(tests),

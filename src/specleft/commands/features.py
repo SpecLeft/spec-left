@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -29,7 +29,7 @@ def _build_features_list_json(config: SpecsConfig) -> dict[str, object]:
         features_payload.append(build_feature_json(feature))
 
     return {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "features": features_payload,
         "summary": {
             "features": len(config.features),
@@ -84,7 +84,7 @@ def _build_features_stats_json(
             }
 
     return {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "directories": {
             "features": f"{features_dir}/",
             "tests": f"{tests_dir}/",
@@ -141,7 +141,7 @@ def features_validate(features_dir: str, format_type: str, strict: bool) -> None
         if format_type == "json":
             payload = {
                 "valid": True,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now().isoformat(),
                 "features": stats.feature_count,
                 "stories": stats.story_count,
                 "scenarios": stats.scenario_count,
@@ -164,7 +164,7 @@ def features_validate(features_dir: str, format_type: str, strict: bool) -> None
         if format_type == "json":
             payload = {
                 "valid": False,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now().isoformat(),
                 "features": 0,
                 "stories": 0,
                 "scenarios": 0,
@@ -184,7 +184,7 @@ def features_validate(features_dir: str, format_type: str, strict: bool) -> None
         if format_type == "json":
             payload = {
                 "valid": False,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now().isoformat(),
                 "features": 0,
                 "stories": 0,
                 "scenarios": 0,
@@ -203,7 +203,7 @@ def features_validate(features_dir: str, format_type: str, strict: bool) -> None
         if format_type == "json":
             payload = {
                 "valid": False,
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now().isoformat(),
                 "features": 0,
                 "stories": 0,
                 "scenarios": 0,

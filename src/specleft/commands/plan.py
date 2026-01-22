@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import textwrap
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import click
@@ -108,7 +108,7 @@ def _build_plan_payload(
     warnings: list[str],
 ) -> dict[str, object]:
     payload: dict[str, object] = {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "status": "warning" if warnings else "ok",
         "prd_path": str(prd_path),
         "dry_run": dry_run,

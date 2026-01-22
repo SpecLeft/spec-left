@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -225,7 +225,7 @@ def build_status_json(
         features.append(feature_payload)
 
     return {
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "features": features,
         "summary": {
             "total_features": summary.total_features,

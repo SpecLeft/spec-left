@@ -3,7 +3,7 @@ SHELL := /bin/sh
 .PHONY: test pre-commit lint lint-fix
 
 test:
-	pytest tests/
+	pytest tests/ -v -rs
 
 pre-commit:
 	pre-commit run --all-files
