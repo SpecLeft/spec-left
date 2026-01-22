@@ -180,7 +180,7 @@ def _build_doctor_output(checks: dict[str, Any]) -> dict[str, Any]:
     output = {
         "healthy": healthy,
         "version": checks.get("version"),
-            "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "checks": checks_map,
     }
 
