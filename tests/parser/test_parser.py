@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from specleft.parser import SpecParser
 from specleft.schema import ExecutionTime, Priority, StepType
 from specleft.validator import collect_spec_stats, load_specs_directory

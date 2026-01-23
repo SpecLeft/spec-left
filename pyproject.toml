@@ -28,6 +28,7 @@ dev = [
     "black",
     "ruff",
     "mypy",
+    "types-PyYAML",
     "pre-commit",
 ]
 

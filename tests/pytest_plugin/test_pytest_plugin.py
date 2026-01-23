@@ -39,15 +39,13 @@ class TestPytestConfigure:
 
     def test_specleft_results_initialized(self, pytester: Pytester) -> None:
         """Test that _specleft_results is initialized on config."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_dummy():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -55,24 +53,20 @@ class TestPytestConfigure:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that metadata is stored on test items."""
-        pytester.makeconftest(
-            """
+        pytester.makeconftest("""
             def pytest_runtest_setup(item):
                 if hasattr(item, '_specleft_metadata'):
                     metadata = item._specleft_metadata
                     assert metadata['feature_id'] == 'auth'
                     assert metadata['scenario_id'] == 'login-success'
-            """
-        )
-        pytester.makepyfile(
-            """
+            """)
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest()
         result.assert_outcomes(passed=1)
 
@@ -87,15 +81,13 @@ class TestMissingSpecsDirectory:
             for path in features_dir.rglob("*"):
                 if path.is_file():
                     path.unlink()
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="any-feature", scenario_id="any-scenario")
             def test_without_validation():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -107,24 +99,20 @@ class TestMissingSpecsDirectory:
                 if path.is_file():
                     path.unlink()
 
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="any-feature", scenario_id="any-scenario")
             def test_without_metadata():
                 pass
-            """
-        )
-        pytester.makeconftest(
-            """
+            """)
+        pytester.makeconftest("""
             def pytest_runtest_call(item):
                 metadata = item._specleft_metadata
                 assert metadata.get('feature_name') is None
                 assert metadata.get('scenario_name') is None
                 assert metadata.get('tags') == []
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -136,17 +124,14 @@ class TestMarkerInjection:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that markers are injected from scenario tags."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
-        pytester.makeconftest(
-            """
+            """)
+        pytester.makeconftest("""
             def pytest_collection_modifyitems(session, config, items):
                 for item in items:
                     if hasattr(item, '_specleft_metadata'):
@@ -154,8 +139,7 @@ class TestMarkerInjection:
                         assert metadata['feature_name'] == 'User Authentication'
                         assert metadata['scenario_name'] == 'Successful login'
                         assert 'smoke' in metadata['tags']
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -172,15 +156,13 @@ class TestMarkerInjection:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that priority markers are injected from spec priority."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -196,8 +178,7 @@ class TestStepCollection:
 
     def test_steps_collected(self, pytester: Pytester, create_specs_tree) -> None:
         """Test that steps are collected during test execution."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft, step
 
             @specleft(feature_id="auth", scenario_id="login-success")
@@ -208,8 +189,7 @@ class TestStepCollection:
                     pass
                 with step("Then user sees dashboard"):
                     pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -219,15 +199,13 @@ class TestResultPersistence:
 
     def test_results_saved_to_disk(self, pytester: Pytester, create_specs_tree) -> None:
         """Test that results are saved to .specleft/results/."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -366,15 +344,13 @@ class TestDynamicMarkerRegistration:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that no PytestUnknownMarkWarning is raised for scenario tags."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
+            """)
         # Run with -W error to turn warnings into errors
         result = pytester.runpytest(
             "-v", "-W", "error::pytest.PytestUnknownMarkWarning"
@@ -387,8 +363,7 @@ class TestDynamicMarkerRegistration:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that priority markers are registered dynamically."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             import pytest
             from specleft import specleft
 
@@ -399,8 +374,7 @@ class TestDynamicMarkerRegistration:
             @specleft(feature_id="auth", scenario_id="login-failure")
             def test_medium_priority():
                 pass
-            """
-        )
+            """)
         # Run with strict markers and turn warnings to errors
         result = pytester.runpytest(
             "-v",
@@ -415,15 +389,13 @@ class TestDynamicMarkerRegistration:
     ) -> None:
         """Test that hyphenated tags are sanitized and registered."""
         # The specs tree includes "auth-flow" tag which should become "auth_flow"
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_with_hyphenated_tag():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest(
             "-v",
             "--strict-markers",
@@ -440,16 +412,14 @@ class TestSkippedTestCapture:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that skipped tests are captured in results JSON."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             import pytest
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success", skip=True)
             def test_skipped():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(skipped=1)
 
@@ -465,8 +435,7 @@ class TestSkippedTestCapture:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that tests skipped via pytest.mark.skip are captured."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             import pytest
             from specleft import specleft
 
@@ -474,8 +443,7 @@ class TestSkippedTestCapture:
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_skipped_by_marker():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(skipped=1)
 
@@ -490,8 +458,7 @@ class TestSkippedTestCapture:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that both passed and skipped tests are captured correctly."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             import pytest
             from specleft import specleft
 
@@ -502,8 +469,7 @@ class TestSkippedTestCapture:
             @specleft(feature_id="auth", scenario_id="login-failure", skip=True)
             def test_skipped():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1, skipped=1)
 
@@ -523,15 +489,13 @@ class TestTagsInMetadata:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that scenario tags are included in results JSON."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_with_tags():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -554,28 +518,23 @@ class TestTagsInMetadata:
         scenario_dir = pytester.path / "features" / "notags" / "story"
         scenario_dir.mkdir(parents=True)
 
-        (pytester.path / "features" / "notags" / "_feature.md").write_text(
-            """
+        (pytester.path / "features" / "notags" / "_feature.md").write_text("""
 ---
 feature_id: notags
 priority: medium
 ---
 
 # Feature: No Tags Feature
-""".strip()
-        )
-        (scenario_dir / "_story.md").write_text(
-            """
+""".strip())
+        (scenario_dir / "_story.md").write_text("""
 ---
 story_id: story
 priority: medium
 ---
 
 # Story: Story
-""".strip()
-        )
-        (scenario_dir / "no_tags.md").write_text(
-            """
+""".strip())
+        (scenario_dir / "no_tags.md").write_text("""
 ---
 scenario_id: no-tags
 priority: medium
@@ -583,18 +542,15 @@ tags: []
 ---
 
 # Scenario: No tags scenario
-""".strip()
-        )
+""".strip())
 
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="notags", scenario_id="no-tags")
             def test_no_tags():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
@@ -621,15 +577,13 @@ class TestFilterBehavior:
             for path in features_dir.rglob("*"):
                 if path.is_file():
                     path.unlink()
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_filtered():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v", "--specleft-tag", "smoke")
         result.assert_outcomes(skipped=1)
 
@@ -637,15 +591,13 @@ class TestFilterBehavior:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that tag filters skip non-matching scenarios."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_filtered():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v", "--specleft-tag", "missing")
         result.assert_outcomes(skipped=1)
 
@@ -653,15 +605,13 @@ class TestFilterBehavior:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that priority filters keep matching scenarios."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_high():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v", "--specleft-priority", "high")
         result.assert_outcomes(passed=1)
 
@@ -669,15 +619,13 @@ class TestFilterBehavior:
         self, pytester: Pytester, create_specs_tree
     ) -> None:
         """Test that unknown scenarios are skipped when specs exist."""
-        pytester.makepyfile(
-            """
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="unknown")
             def test_unknown():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(skipped=1)
 
@@ -686,41 +634,33 @@ class TestFilterBehavior:
         features_dir = pytester.path / "features"
         story_dir = features_dir / "auth" / "login"
         story_dir.mkdir(parents=True, exist_ok=True)
-        (features_dir / "auth" / "_feature.md").write_text(
-            """
+        (features_dir / "auth" / "_feature.md").write_text("""
 ---
 feature_id: auth
 ---
 
 # Feature: Auth
-""".strip()
-        )
-        (story_dir / "_story.md").write_text(
-            """
+""".strip())
+        (story_dir / "_story.md").write_text("""
 ---
 story_id: login
 ---
 
 # Story: Login
-""".strip()
-        )
-        (story_dir / "login_success.md").write_text(
-            """
+""".strip())
+        (story_dir / "login_success.md").write_text("""
 ---
 scenario_id: login-success
 ---
 
 # Scenario: Login Success
-""".strip()
-        )
-        pytester.makepyfile(
-            """
+""".strip())
+        pytester.makepyfile("""
             from specleft import specleft
 
             @specleft(feature_id="auth", scenario_id="login-success")
             def test_login():
                 pass
-            """
-        )
+            """)
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)

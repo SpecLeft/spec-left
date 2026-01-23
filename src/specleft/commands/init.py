@@ -14,8 +14,7 @@ import click
 def _init_example_content() -> dict[str, str]:
     """Generate single-file example feature using canonical template."""
     return {
-        "features/example-feature.md": textwrap.dedent(
-            """
+        "features/example-feature.md": textwrap.dedent("""
             # Feature: Example Feature
 
             ## Scenarios
@@ -51,9 +50,7 @@ def _init_example_content() -> dict[str, str]:
             owner: dev-team
             component: identity
             ---
-            """
-        ).strip()
-        + "\n",
+            """).strip() + "\n",
     }
 
 

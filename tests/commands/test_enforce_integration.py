@@ -12,9 +12,9 @@ from unittest.mock import patch
 import pytest
 import yaml
 from click.testing import CliRunner
+
 from specleft.cli.main import cli
 from specleft.license.repo_identity import RepoIdentity
-
 from tests.helpers.specs import create_feature_specs
 from tests.license.fixtures import (
     TEST_KEY_ID,
@@ -75,15 +75,13 @@ class TestEnforceIntegrationWorkflows:
             # 2. Create implemented test
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text(
-                """
+            (tests_dir / "test_login.py").write_text("""
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-"""
-            )
+""")
 
             # 3. Create Core policy
             policy_data = create_core_policy_data(
@@ -148,15 +146,13 @@ def test_login_success():
             # Create implemented test
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text(
-                """
+            (tests_dir / "test_login.py").write_text("""
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-"""
-            )
+""")
 
             # Create Enforce policy with active evaluation
             today = date.today()
@@ -192,15 +188,13 @@ def test_login_success():
 
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text(
-                """
+            (tests_dir / "test_login.py").write_text("""
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-"""
-            )
+""")
 
             # Create Enforce policy without evaluation (purchased)
             policy_data = create_enforce_policy_data(
@@ -232,15 +226,13 @@ def test_login_success():
 
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text(
-                """
+            (tests_dir / "test_login.py").write_text("""
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-"""
-            )
+""")
 
             # Expired Enforce policy
             today = date.today()
@@ -296,15 +288,13 @@ def test_login_success():
             # Only implement auth
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text(
-                """
+            (tests_dir / "test_login.py").write_text("""
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-"""
-            )
+""")
 
             # Enforce policy requiring critical
             policy_data = create_enforce_policy_data(

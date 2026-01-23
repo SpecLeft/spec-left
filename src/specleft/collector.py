@@ -29,6 +29,7 @@ class ResultCollector:
 
         features_list = []
         total_executions = total_passed = total_failed = total_skipped = 0
+        total_scenarios = 0
         total_duration = 0.0
 
         for feature_id in sorted(features_map.keys()):
@@ -59,6 +60,7 @@ class ResultCollector:
                     }
                 )
 
+                total_scenarios += 1
                 total_executions += len(executions)
                 total_passed += scenario_passed
                 total_failed += scenario_failed
@@ -77,7 +79,7 @@ class ResultCollector:
             "run_id": datetime.now().isoformat(),
             "summary": {
                 "total_features": len(features_list),
-                "total_scenarios": sum(len(f["scenarios"]) for f in features_list),
+                "total_scenarios": total_scenarios,
                 "total_executions": total_executions,
                 "passed": total_passed,
                 "failed": total_failed,

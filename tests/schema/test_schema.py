@@ -6,8 +6,9 @@ import importlib
 from pathlib import Path
 
 import pytest
-import specleft.schema as schema
 from pydantic import ValidationError
+
+import specleft.schema as schema
 from specleft.schema import (
     ExecutionTime,
     FeatureSpec,
