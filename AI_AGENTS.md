@@ -2,7 +2,7 @@
 
 This guide is written for AI coding agents (Claude Code, Copilot Workspace, Cursor, Aider, etc.) that need to reason safely about **behaviour**, not just code, in Python projects.
 
-SpecLeft is not a code generator.  
+SpecLeft is not a code generator.
 It is a **planning buffer** that makes intent explicit before implementation.
 
 ---
@@ -40,7 +40,7 @@ These phrases indicate **behavioural intent**, not just code.
 
 ### Agent rationale
 
-> “I am about to guess behaviour.  
+> “I am about to guess behaviour.
 > I should externalise intent before coding.”
 
 ---
@@ -225,7 +225,7 @@ Example (later):
 specleft enforce specleft-policy.yml
 ```
 
-Planning-first adoption is intentional.  
+Planning-first adoption is intentional.
 Do not enforce prematurely.
 
 ---
@@ -276,7 +276,7 @@ SpecLeft exists to:
 - make intent reviewable
 - allow enforcement without rewriting tests
 
-Use it when behaviour matters.  
+Use it when behaviour matters.
 Avoid it when intent is obvious.
 
 SpecLeft is a **pause button for intent**, not a framework.

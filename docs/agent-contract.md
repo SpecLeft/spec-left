@@ -190,12 +190,12 @@ Changes to this contract require:
 
 ---
 ## Verification Caching
-   
+
    Safe to cache verification results for:
    - Same `specleft_version`
    - Same `contract_version`
    - Within same session
-   
+
    Re-verify if:
    - SpecLeft version changes
    - Contract version changes
