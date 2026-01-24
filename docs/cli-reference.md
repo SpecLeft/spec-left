@@ -146,9 +146,10 @@ Arguments:
   POLICY_FILE           Path to policy YAML file (default: .specleft/policy.yml)
 
 Options:
-  --dir PATH                  Path to features directory (default: features)
+  --dir PATH                  Path to features directory (default: features/)
   --format [table|json]       Output format (default: table)
   --ignore-feature-id TEXT    Exclude feature from enforcement (Enforce+ tier only, repeatable)
+  --tests PATH                Path to tests directory (default: tests/)
 ```
 
 #### Exit Codes

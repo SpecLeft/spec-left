@@ -49,7 +49,7 @@ class EnforcementResult:
                 {
                     "feature_id": v.feature_id,
                     "scenario_id": v.scenario_id,
-                    "priority": v.priority,
+                    "priority": v.priority.capitalize(),
                 }
                 for v in self.priority_violations
             ],

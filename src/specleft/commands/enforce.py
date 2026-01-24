@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pydoc import cli
 import sys
 from datetime import date
 from enum import Enum
@@ -88,18 +89,19 @@ def display_policy_status(policy: SignedPolicy) -> None:
     Args:
         policy: The active policy
     """
+    click.echo("")
     if policy.policy_type == PolicyType.ENFORCE:
         if policy.license.evaluation:
             days = (policy.license.evaluation.ends_at - date.today()).days
-            click.echo("Enforce Policy (evaluation)")
+            click.secho("Enforce Policy (evaluation)", fg="cyan", bold=True)
             click.echo(f"Evaluation expires in {days} days")
         else:
-            click.echo("Enforce Policy active")
+            click.secho("Enforce Policy active", fg="cyan", bold=True)
     else:
         if policy.license.derived_from:
             click.echo("Core Policy (downgraded from Enforce)")
         else:
-            click.echo("Core Policy active")
+            click.secho("Core Policy active", fg="cyan", bold=True)
     click.echo()
 
 
@@ -114,11 +116,12 @@ def display_violations(violations: dict[str, Any]) -> None:
         click.echo()
 
     if violations["priority_violations"]:
-        click.echo("Priority violations:")
+        click.secho("Priority violations:", fg="red")
+        click.echo()
         for pv in violations["priority_violations"]:
             click.echo(
                 f"  \u2717 {pv['feature_id']}/{pv['scenario_id']} "
-                f"({pv['priority']}) - not implemented"
+                f"({pv['priority']}) - NOT IMPLEMENTED"
             )
         click.echo()
 
@@ -160,11 +163,18 @@ def display_violations(violations: dict[str, Any]) -> None:
     default="features",
     help="Path to features directory.",
 )
+@click.option(
+    "--tests",
+    "test_dir",
+    default="tests",
+    help="Path to tests directory.",
+)
 def enforce(
     policy_file: str,
     fmt: str,
     ignored: tuple[str, ...],
     features_dir: str,
+    test_dir: str,
 ) -> None:
     """Enforce policy against the source code.
 
@@ -216,9 +226,14 @@ def enforce(
     # Show policy status (table format only)
     if fmt == "table":
         display_policy_status(policy)
-        click.echo("Checking scenarios...")
+        click.echo("Validating scenarios are covered...")
+        click.echo("")
+        click.echo("Features directory: " + str(Path(features_dir).resolve()))
+        click.echo("Tests directory: " + str(Path(test_dir).resolve()))
+        click.echo("")
         if policy.policy_type == PolicyType.ENFORCE:
-            click.echo("Checking coverage...")
+            click.echo(f"Ignored features: {', '.join(ignored) if ignored else 'none'}")
+            click.echo(f"Checking coverage in {test_dir}/...")
         click.echo()
 
     # Run enforcement
@@ -226,6 +241,7 @@ def enforce(
         policy=policy,
         ignored_features=list(ignored),
         features_dir=features_dir,
+        tests_dir=test_dir
     )
 
     if fmt == "json":
