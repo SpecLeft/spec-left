@@ -36,7 +36,7 @@ jobs:
       
       - name: Configure Git for private repos
         run: |
-          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/"
+          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "git@github.com:"
 
       - name: Install dependencies
         run: |
