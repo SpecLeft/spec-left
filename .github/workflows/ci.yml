@@ -34,24 +34,27 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: SpecLeft
 
-      - name: Configure Git for private repos
+      - name: Configure Git credentials
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          # Initialize git config
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # Set up credential helper
+          git config --global credential.helper store
           
-          # IMPORTANT: More specific rules first, then more general
-          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "https://github.com/SpecLeft/"
-          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "git@github.com:SpecLeft/"
-          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "ssh://git@github.com/SpecLeft/"
+          # Store credentials
+          mkdir -p ~/.config/git
+          echo "https://x-access-token:${GH_TOKEN}@github.com" > ~/.git-credentials
+          chmod 600 ~/.git-credentials
+          
+          # Verify credential file exists
+          echo "Credentials configured"
 
       - name: Verify git config
         run: |
           git config --global --list | grep url
             
             # Add this debug step to your workflow temporarily
+
       - name: Test access to private repo
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
