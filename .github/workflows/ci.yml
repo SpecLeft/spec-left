@@ -49,11 +49,10 @@ jobs:
           # Verify credential file exists
           echo "Credentials configured"
 
-      - name: Test access to private repo
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      - name: Verify GitHub access
         run: |
-          git ls-remote https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/specleft-signing.git
+          echo "Testing access to specleft-signing..."
+          git ls-remote https://github.com/SpecLeft/specleft-signing.git
       
       - name: Install dependencies
         run: |
