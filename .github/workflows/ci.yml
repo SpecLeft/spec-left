@@ -43,7 +43,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # IMPORTANT: More specific rules first, then more general
-          git config --global url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "ssh://git@github.com/SpecLeft/"
+          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "https://github.com/SpecLeft/"
+          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "git@github.com:SpecLeft/"
+          git config --global --add url."https://x-access-token:${GH_TOKEN}@github.com/SpecLeft/".insteadOf "ssh://git@github.com/SpecLeft/"
 
       - name: Verify git config
         run: |
