@@ -18,7 +18,7 @@ dependencies = [
     "python-slugify>=8.0.0",
     "pyyaml>=6.0.0",
     "cryptography>=41.0.0",
-    "specleft-signing @ git+ssh://git@github.com/SpecLeft/specleft-signing.git@v0.2.0"
+    "specleft-signing @ git+https://github.com/SpecLeft/specleft-signing.git@v0.2.0"
 ]
 
 [project.optional-dependencies]
