@@ -49,12 +49,6 @@ jobs:
           # Verify credential file exists
           echo "Credentials configured"
 
-      - name: Verify git config
-        run: |
-          git config --global --list | grep url
-            
-            # Add this debug step to your workflow temporarily
-
       - name: Test access to private repo
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
