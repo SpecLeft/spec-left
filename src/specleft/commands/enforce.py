@@ -259,7 +259,7 @@ def enforce(
     # Check repository binding
     if result.valid:
         # Keep command attribute in sync for tests patching either location
-        enforce.detect_repo_identity = detect_repo_identity
+        setattr(enforce, "detect_repo_identity", detect_repo_identity)
         repo = detect_repo_identity()
         if repo is None:
             result = VerifyResult(
@@ -304,4 +304,4 @@ def enforce(
 
 
 # Expose detect_repo_identity for tests patching specleft.commands.enforce
-enforce.detect_repo_identity = detect_repo_identity
+setattr(enforce, "detect_repo_identity", detect_repo_identity)
