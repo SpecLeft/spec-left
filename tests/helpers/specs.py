@@ -165,7 +165,8 @@ def write_specs_tree(base_dir: Path) -> Path:
     auth_story_dir.mkdir(parents=True, exist_ok=True)
     parse_story_dir.mkdir(parents=True, exist_ok=True)
 
-    (features_dir / "auth" / "_feature.md").write_text("""
+    (features_dir / "auth" / "_feature.md").write_text(
+        """
 ---
 feature_id: auth
 priority: critical
@@ -173,8 +174,10 @@ tags: [core]
 ---
 
 # Feature: User Authentication
-""".strip())
-    (auth_story_dir / "_story.md").write_text("""
+""".strip()
+    )
+    (auth_story_dir / "_story.md").write_text(
+        """
 ---
 story_id: login
 priority: high
@@ -182,8 +185,10 @@ tags: [auth-flow]
 ---
 
 # Story: Login
-""".strip())
-    (auth_story_dir / "login_success.md").write_text("""
+""".strip()
+    )
+    (auth_story_dir / "login_success.md").write_text(
+        """
 ---
 scenario_id: login-success
 priority: high
@@ -197,8 +202,10 @@ execution_time: fast
 - **Given** user has valid credentials
 - **When** user logs in
 - **Then** user sees dashboard
-""".strip())
-    (auth_story_dir / "login_failure.md").write_text("""
+""".strip()
+    )
+    (auth_story_dir / "login_failure.md").write_text(
+        """
 ---
 scenario_id: login-failure
 priority: medium
@@ -212,9 +219,11 @@ execution_time: fast
 - **Given** user has invalid credentials
 - **When** user tries to log in
 - **Then** user sees error message
-""".strip())
+""".strip()
+    )
 
-    (features_dir / "parse" / "_feature.md").write_text("""
+    (features_dir / "parse" / "_feature.md").write_text(
+        """
 ---
 feature_id: parse
 priority: high
@@ -222,8 +231,10 @@ tags: [unit]
 ---
 
 # Feature: Unit Parsing
-""".strip())
-    (parse_story_dir / "_story.md").write_text("""
+""".strip()
+    )
+    (parse_story_dir / "_story.md").write_text(
+        """
 ---
 story_id: units
 priority: medium
@@ -231,8 +242,10 @@ tags: [parsing]
 ---
 
 # Story: Units
-""".strip())
-    (parse_story_dir / "extract_unit.md").write_text("""
+""".strip()
+    )
+    (parse_story_dir / "extract_unit.md").write_text(
+        """
 ---
 scenario_id: extract-unit
 priority: medium
@@ -245,6 +258,7 @@ execution_time: fast
 ## Steps
 - **When** extracting unit
 - **Then** unit is correct
-""".strip())
+""".strip()
+    )
 
     return features_dir

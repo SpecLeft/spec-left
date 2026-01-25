@@ -44,7 +44,9 @@ def _extract_feature_titles(prd_content: str) -> tuple[list[str], list[str]]:
 
 
 def _feature_template(title: str) -> str:
-    return textwrap.dedent(f"""
+    return (
+        textwrap.dedent(
+            f"""
             # Feature: {title}
 
             ## Scenarios
@@ -55,7 +57,10 @@ def _feature_template(title: str) -> str:
             - Given a precondition
             - When an action occurs
             - Then the expected result
-            """).strip() + "\n"
+            """
+        ).strip()
+        + "\n"
+    )
 
 
 def _feature_path(features_dir: Path, title: str) -> Path:

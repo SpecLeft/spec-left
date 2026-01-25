@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from specleft.commands.contracts.table import (
     emit_contract_check,
     format_contract_check_label,

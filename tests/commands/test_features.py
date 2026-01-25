@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
-
 from specleft.cli.main import cli
+
 from tests.helpers.specs import create_feature_specs
 
 
@@ -245,13 +245,15 @@ class TestFeaturesStatsCommand:
             tests_dir = Path("tests")
             tests_dir.mkdir()
             test_file = tests_dir / "test_auth.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
 
             result = runner.invoke(cli, ["features", "stats"])
             assert result.exit_code == 0
@@ -274,7 +276,8 @@ def test_login_success():
 
             # Add a second scenario manually
             scenario_dir = Path("features/auth/login")
-            (scenario_dir / "login-failure.md").write_text("""---
+            (scenario_dir / "login-failure.md").write_text(
+                """---
 scenario_id: login-failure
 name: Login Failure
 priority: high
@@ -283,19 +286,22 @@ priority: high
 Given a user exists
 When the user logs in with wrong password
 Then access is denied
-""")
+"""
+            )
 
             # Create test file with only one @specleft test
             tests_dir = Path("tests")
             tests_dir.mkdir()
             test_file = tests_dir / "test_auth.py"
-            test_file.write_text("""
+            test_file.write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
 
             result = runner.invoke(cli, ["features", "stats"])
             assert result.exit_code == 0

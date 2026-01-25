@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from specleft.collector import ResultCollector
 
 
