@@ -16,6 +16,7 @@ from click.testing import CliRunner
 
 from specleft import specleft
 from specleft.cli.main import cli
+from conftest import FeatureFiles
 
 # =============================================================================
 # Feature: Feature 3: Canonical JSON Output
@@ -31,7 +32,9 @@ from specleft.cli.main import cli
     feature_id="feature-3-canonical-json-output",
     scenario_id="emit-canonical-json-shape",
 )
-def test_emit_canonical_json_shape(acceptance_workspace) -> None:
+def test_emit_canonical_json_shape(
+    feature_3_canonical_json: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Emit canonical JSON shape
 
     Priority: critical
@@ -42,41 +45,11 @@ def test_emit_canonical_json_shape(acceptance_workspace) -> None:
     - scenarios with id, priority, and status
     - optional metadata fields (nullable)
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_3_canonical_json
 
     with specleft.step("Given a SpecLeft command is run with --format json"):
-        # Create a feature file with scenarios
-        feature_content = """\
-# Feature: User Authentication
-priority: high
-
-## Scenarios
-
-### Scenario: User logs in successfully
-priority: critical
-
-- Given a registered user
-- When they submit valid credentials
-- Then they are authenticated
-
-### Scenario: User logout
-priority: medium
-
-- Given an authenticated user
-- When they click logout
-- Then the session is terminated
-"""
-        Path("features/feature-user-authentication.md").write_text(feature_content)
-
-        # Create test file so we can verify status field
-        Path("tests").mkdir()
-        Path("tests/test_feature_user_authentication.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-user-authentication", scenario_id="user-logs-in-successfully")
-def test_user_logs_in_successfully():
-    pass
-""")
+        # Feature and test files are already created by fixture
+        pass
 
     with specleft.step("When output is produced"):
         # Use status command with --format json to get canonical output
@@ -134,7 +107,9 @@ def test_user_logs_in_successfully():
     feature_id="feature-3-canonical-json-output",
     scenario_id="scenario-ids-are-deterministic",
 )
-def test_scenario_ids_are_deterministic(acceptance_workspace) -> None:
+def test_scenario_ids_are_deterministic(
+    feature_3_slugification: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Scenario IDs are deterministic
 
     Priority: critical
@@ -142,39 +117,11 @@ def test_scenario_ids_are_deterministic(acceptance_workspace) -> None:
     Verifies that scenario IDs are derived consistently from titles
     using slugification, and repeated runs produce identical IDs.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_3_slugification
 
     with specleft.step("Given a scenario title exists"):
-        # Create feature file with scenarios that have varied titles
-        # to test slugification behaviour
-        feature_content = """\
-# Feature: Slugification Test
-priority: high
-
-## Scenarios
-
-### Scenario: User Logs In Successfully
-priority: high
-
-- Given a user
-- When they log in
-- Then success
-
-### Scenario: Handle Edge-Case (Special Characters!)
-priority: medium
-
-- Given edge case
-- When handled
-- Then pass
-
-### Scenario: Multi   Word   Spaces
-priority: low
-
-- Given words
-- When spaced
-- Then normalized
-"""
-        Path("features/feature-slugification-test.md").write_text(feature_content)
+        # Feature file is already created by fixture
+        pass
 
     with specleft.step("When JSON is emitted"):
         # Run status command twice to verify determinism

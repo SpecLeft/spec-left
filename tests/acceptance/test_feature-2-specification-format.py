@@ -16,6 +16,7 @@ from click.testing import CliRunner
 
 from specleft import specleft
 from specleft.cli.main import cli
+from conftest import FeatureFiles
 
 # =============================================================================
 # Feature: Feature 2: Specification Format
@@ -31,7 +32,9 @@ from specleft.cli.main import cli
     feature_id="feature-2-specification-format",
     scenario_id="minimal-valid-feature-file",
 )
-def test_minimal_valid_feature_file(acceptance_workspace) -> None:
+def test_minimal_valid_feature_file(
+    feature_2_minimal: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Minimal valid feature file
 
     Priority: critical
@@ -39,24 +42,11 @@ def test_minimal_valid_feature_file(acceptance_workspace) -> None:
     Verifies that a feature file with only the minimum required elements
     (at least one scenario with a priority) is considered valid by SpecLeft.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_2_minimal
 
     with specleft.step("Given a feature file exists under features/"):
-        # Create a minimal feature file - just a scenario with priority
-        # Using the same format as existing feature files in the repo
-        minimal_feature = """\
-# Feature: Minimal Feature
-
-## Scenarios
-
-### Scenario: Basic scenario
-priority: high
-
-- Given a precondition
-- When an action occurs
-- Then an expected result
-"""
-        Path("features/minimal-feature.md").write_text(minimal_feature)
+        # Feature file is already created by fixture
+        pass
 
     with specleft.step("When it contains at least one scenario with a priority"):
         # The feature file above contains exactly one scenario with priority: high
@@ -102,7 +92,9 @@ priority: high
     feature_id="feature-2-specification-format",
     scenario_id="optional-metadata-does-not-block-usage",
 )
-def test_optional_metadata_does_not_block_usage(acceptance_workspace) -> None:
+def test_optional_metadata_does_not_block_usage(
+    feature_2_metadata_variants: tuple[CliRunner, Path, FeatureFiles, FeatureFiles],
+) -> None:
     """Optional metadata does not block usage
 
     Priority: high
@@ -115,50 +107,13 @@ def test_optional_metadata_does_not_block_usage(acceptance_workspace) -> None:
     Note: YAML frontmatter parsing at the start of files is currently limited.
     This test validates that the system gracefully handles metadata presence/absence.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _with_meta_files, _without_meta_files = (
+        feature_2_metadata_variants
+    )
 
     with specleft.step("Given a feature file includes optional metadata"):
-        # Create a feature file WITH optional metadata
-        # Note: The parser has limited YAML frontmatter support, so we include
-        # metadata but verify the system doesn't error when it's present
-        feature_with_metadata = """\
----
-confidence: high
-owner: test-team
-component: auth-service
-tags:
-  - security
-  - login
----
-# Feature: Feature With Metadata
-
-## Scenarios
-
-### Scenario: Login with metadata
-priority: critical
-
-- Given a user with credentials
-- When they attempt login
-- Then they are authenticated
-"""
-        Path("features/feature-with-metadata.md").write_text(feature_with_metadata)
-
-        # Create another feature file WITHOUT optional metadata (minimal)
-        feature_without_metadata = """\
-# Feature: Feature Without Metadata
-
-## Scenarios
-
-### Scenario: Basic operation
-priority: medium
-
-- Given a system state
-- When an operation occurs
-- Then state changes
-"""
-        Path("features/feature-without-metadata.md").write_text(
-            feature_without_metadata
-        )
+        # Feature files are already created by fixture
+        pass
 
     with specleft.step("When SpecLeft parses the file"):
         # Validate both files - should not error regardless of metadata

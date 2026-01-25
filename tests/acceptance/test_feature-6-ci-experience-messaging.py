@@ -20,6 +20,7 @@ from click.testing import CliRunner
 from specleft import specleft
 from specleft.cli.main import cli
 from specleft.license.repo_identity import RepoIdentity
+from conftest import FeatureFiles
 from tests.license.fixtures import (
     TEST_KEY_ID,
     TEST_PUBLIC_KEY_B64,
@@ -73,7 +74,9 @@ def write_policy_file(
     feature_id="feature-6-ci-experience-messaging",
     scenario_id="ci-failure-explains-intent-mismatch",
 )
-def test_ci_failure_explains_intent_mismatch(acceptance_workspace):
+def test_ci_failure_explains_intent_mismatch(
+    feature_6_ci_failure: tuple[CliRunner, Path, FeatureFiles],
+):
     """CI failure explains intent mismatch
 
     Priority: critical (per PRD)
@@ -84,44 +87,10 @@ def test_ci_failure_explains_intent_mismatch(acceptance_workspace):
     - Provides clear remediation options (documentation links)
     - Contains NO marketing or pricing language
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_6_ci_failure
 
     with specleft.step("Given enforcement fails in CI"):
-        # Create a feature with critical scenario that will be unimplemented
-        feature_content = """\
-# Feature: Order Processing
-priority: high
-
-## Scenarios
-
-### Scenario: Process critical order
-priority: critical
-
-- Given a pending order
-- When processing is triggered
-- Then order is fulfilled
-
-### Scenario: Archive old orders
-priority: low
-
-- Given orders older than 90 days
-- When archival runs
-- Then orders are archived
-"""
-        Path("features/feature-order-processing.md").write_text(feature_content)
-
-        # Create tests directory with only low-priority test implemented
-        Path("tests").mkdir()
-        Path("tests/__init__.py").write_text("")
-        Path("tests/test_orders.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-order-processing", scenario_id="archive-old-orders")
-def test_archive_old_orders():
-    \"\"\"Only low priority implemented - critical is missing.\"\"\"
-    pass
-""")
-
+        # Feature and test files are already created by fixture
         # Create a signed policy requiring critical scenarios
         policy_data = create_enforce_policy_data(
             licensed_to="test-owner/test-repo",
@@ -204,7 +173,10 @@ def test_archive_old_orders():
     ],
 )
 def test_documentation_and_support_links_on_ci_failure(
-    acceptance_workspace, package: str, policy_filename: str, policy_creator
+    feature_6_doc_links: tuple[CliRunner, Path, FeatureFiles],
+    package: str,
+    policy_filename: str,
+    policy_creator,
 ):
     """Documentation and support links on CI failure
 
@@ -213,46 +185,12 @@ def test_documentation_and_support_links_on_ci_failure(
     Verifies that when enforcement fails with policy violations,
     the output includes actionable documentation and support links.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_6_doc_links
 
     with specleft.step(
         f"Given enforcement fails in CI with {package} policy violation"
     ):
-        # Create a feature with critical scenario that will be unimplemented
-        feature_content = """\
-# Feature: Notification Service
-priority: high
-
-## Scenarios
-
-### Scenario: Send critical alert
-priority: critical
-
-- Given a critical event
-- When alert is triggered
-- Then notification is sent
-
-### Scenario: Log notification history
-priority: medium
-
-- Given notifications sent
-- When history is queried
-- Then records are returned
-"""
-        Path("features/feature-notification-service.md").write_text(feature_content)
-
-        # Create tests - leave critical scenario unimplemented
-        Path("tests").mkdir()
-        Path("tests/__init__.py").write_text("")
-        Path("tests/test_notifications.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-notification-service", scenario_id="log-notification-history")
-def test_log_notification_history():
-    \"\"\"Only medium priority implemented.\"\"\"
-    pass
-""")
-
+        # Feature and test files are already created by fixture
         # Create the appropriate policy type
         policy_data = policy_creator(
             licensed_to="test-owner/test-repo",

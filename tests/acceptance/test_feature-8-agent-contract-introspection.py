@@ -12,11 +12,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from specleft import specleft
 from specleft.cli.main import cli
+from conftest import FeatureFiles, FeatureOnlyFiles
 
 # =============================================================================
 # Feature: Feature 8: Agent Contract Introspection
@@ -32,7 +32,9 @@ from specleft.cli.main import cli
     feature_id="feature-8-agent-contract-introspection",
     scenario_id="expose-agent-contract-as-structured-json",
 )
-def test_expose_agent_contract_as_structured_json(acceptance_workspace):
+def test_expose_agent_contract_as_structured_json(
+    feature_8_contract: tuple[CliRunner, Path, FeatureFiles],
+):
     """Expose agent contract as structured JSON
 
     Priority: high (per PRD)
@@ -40,22 +42,11 @@ def test_expose_agent_contract_as_structured_json(acceptance_workspace):
     Verifies that `specleft contract --format json` outputs a canonical JSON
     object containing contract clauses that agents can rely upon.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_8_contract
 
     with specleft.step("Given the repository is configured to use SpecLeft"):
-        # Create minimal SpecLeft configuration (features directory)
-        feature_content = """\
-# Feature: Test Feature
-priority: medium
-
-## Scenarios
-
-### Scenario: Basic test
-- Given a precondition
-- When an action occurs
-- Then expected result
-"""
-        Path("features/feature-test.md").write_text(feature_content)
+        # Feature file is already created by fixture
+        pass
 
     with specleft.step(
         "And an agent wants to understand how it is expected to interact with SpecLeft"
@@ -167,7 +158,9 @@ priority: medium
     feature_id="feature-8-agent-contract-introspection",
     scenario_id="verify-repository-complies-with-the-agent-contract",
 )
-def test_verify_repository_complies_with_the_agent_contract(acceptance_workspace):
+def test_verify_repository_complies_with_the_agent_contract(
+    feature_8_contract_test: tuple[CliRunner, Path, FeatureFiles],
+):
     """Verify repository complies with the agent contract
 
     Priority: high (per PRD)
@@ -175,28 +168,13 @@ def test_verify_repository_complies_with_the_agent_contract(acceptance_workspace
     Verifies that `specleft contract test --format json` validates repository
     compliance and exits with zero status when compliant.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_8_contract_test
 
     with specleft.step(
         "Given the repository is configured according to the SpecLeft agent contract"
     ):
-        # Create a properly configured repository with features
-        feature_content = """\
-# Feature: Auth
-priority: high
-
-## Scenarios
-
-### Scenario: User login
-- Given valid credentials
-- When login is attempted
-- Then user is authenticated
-"""
-        Path("features/feature-auth.md").write_text(feature_content)
-
-        # Create tests directory (contract tests will create skeleton tests)
-        Path("tests").mkdir()
-        Path("tests/__init__.py").write_text("")
+        # Feature and test files are already created by fixture
+        pass
 
     with specleft.step("When specleft contract test --format json is executed"):
         result = runner.invoke(
@@ -249,7 +227,9 @@ priority: high
     feature_id="feature-8-agent-contract-introspection",
     scenario_id="clear-failures-when-contract-is-violated",
 )
-def test_clear_failures_when_contract_is_violated(acceptance_workspace):
+def test_clear_failures_when_contract_is_violated(
+    feature_8_contract_minimal: tuple[CliRunner, Path, FeatureOnlyFiles],
+):
     """Clear failures when contract is violated
 
     Priority: medium (per PRD)
@@ -257,29 +237,15 @@ def test_clear_failures_when_contract_is_violated(acceptance_workspace):
     Verifies that contract test failures are reported clearly in both
     machine-readable and human-readable formats.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_8_contract_minimal
 
     with specleft.step(
         "Given the repository is missing one or more required elements of the agent contract"
     ):
-        # Create an empty repository - no features directory
-        # This simulates a misconfigured or incomplete setup
+        # Feature file is already created by fixture
         # Note: The contract tests run internal checks, not file presence checks.
         # We need to create a scenario where one of the actual contract checks fails.
-
-        # Create features directory with valid spec
-        feature_content = """\
-# Feature: Test
-priority: high
-
-## Scenarios
-
-### Scenario: Test scenario
-- Given a condition
-- When action happens
-- Then result occurs
-"""
-        Path("features/feature-test.md").write_text(feature_content)
+        pass
 
     with specleft.step("When specleft contract test is executed"):
         # Run with table format (default) to test human-readable output

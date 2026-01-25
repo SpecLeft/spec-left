@@ -21,6 +21,7 @@ from click.testing import CliRunner
 from specleft import specleft
 from specleft.cli.main import cli
 from specleft.license.repo_identity import RepoIdentity
+from conftest import FeatureFiles
 from tests.license.fixtures import (
     TEST_KEY_ID,
     TEST_PUBLIC_KEY_B64,
@@ -74,7 +75,9 @@ def write_policy_file(
     feature_id="feature-5-policy-enforcement",
     scenario_id="enforce-critical-and-high-priority-scenarios",
 )
-def test_enforce_critical_and_high_priority_scenarios(acceptance_workspace) -> None:
+def test_enforce_critical_and_high_priority_scenarios(
+    feature_5_policy_violation: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Enforce critical and high priority scenarios
 
     Priority: critical
@@ -83,41 +86,12 @@ def test_enforce_critical_and_high_priority_scenarios(acceptance_workspace) -> N
     to be implemented, and one or more are unimplemented, the command exits
     with a non-zero status and explains which intent was violated.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_5_policy_violation
 
     with specleft.step(
         "Given a signed policy requiring critical and high scenarios to be implemented"
     ):
-        # Create a feature with critical and high priority scenarios
-        feature_content = """\
-# Feature: User Authentication
-priority: high
-
-## Scenarios
-
-### Scenario: User login critical
-priority: critical
-
-- Given a registered user
-- When they submit valid credentials
-- Then they are authenticated
-
-### Scenario: User password reset
-priority: high
-
-- Given a user forgot password
-- When they request reset
-- Then email is sent
-
-### Scenario: User logout
-priority: medium
-
-- Given an authenticated user
-- When they click logout
-- Then session is terminated
-"""
-        Path("features/feature-user-authentication.md").write_text(feature_content)
-
+        # Feature and test files are already created by fixture
         # Create a signed policy requiring critical and high priorities
         policy_data = create_enforce_policy_data(
             licensed_to="test-owner/test-repo",
@@ -131,19 +105,8 @@ priority: medium
         write_policy_file(Path("."), policy_data)
 
     with specleft.step("And one or more such scenarios are unimplemented"):
-        # Create tests directory with NO implemented tests
-        # All critical and high scenarios remain unimplemented
-        Path("tests").mkdir()
-        Path("tests/__init__.py").write_text("")
-        # Only implement medium priority scenario (not enforced)
-        Path("tests/test_auth.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-user-authentication", scenario_id="user-logout")
-def test_user_logout():
-    \"\"\"Only medium priority implemented.\"\"\"
-    pass
-""")
+        # Test file is already created by fixture with only medium priority implemented
+        pass
 
     with specleft.step("When specleft enforce <policy.yml> is executed"):
         with patch(
@@ -185,7 +148,9 @@ def test_user_logout():
     feature_id="feature-5-policy-enforcement",
     scenario_id="pass-enforcement-when-intent-is-satisfied",
 )
-def test_pass_enforcement_when_intent_is_satisfied(acceptance_workspace) -> None:
+def test_pass_enforcement_when_intent_is_satisfied(
+    feature_5_policy_satisfied: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Pass enforcement when intent is satisfied
 
     Priority: high
@@ -193,59 +158,12 @@ def test_pass_enforcement_when_intent_is_satisfied(acceptance_workspace) -> None
     Verifies that when all critical and high priority scenarios are implemented,
     the enforcement command exits successfully.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_5_policy_satisfied
 
     with specleft.step(
         "Given all critical and high priority scenarios are implemented"
     ):
-        # Create a feature with critical and high priority scenarios
-        feature_content = """\
-# Feature: Payment Processing
-priority: high
-
-## Scenarios
-
-### Scenario: Process payment
-priority: critical
-
-- Given a valid payment method
-- When payment is submitted
-- Then transaction succeeds
-
-### Scenario: Refund payment
-priority: high
-
-- Given a completed transaction
-- When refund is requested
-- Then amount is returned
-
-### Scenario: View payment history
-priority: low
-
-- Given a user account
-- When viewing history
-- Then transactions are listed
-"""
-        Path("features/feature-payment-processing.md").write_text(feature_content)
-
-        # Create tests implementing all critical and high priority scenarios
-        Path("tests").mkdir()
-        Path("tests/test_payment.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-payment-processing", scenario_id="process-payment")
-def test_process_payment():
-    \"\"\"Critical scenario implemented.\"\"\"
-    pass
-
-@specleft(feature_id="feature-payment-processing", scenario_id="refund-payment")
-def test_refund_payment():
-    \"\"\"High priority scenario implemented.\"\"\"
-    pass
-
-# Note: view-payment-history (low priority) intentionally not implemented
-""")
-
+        # Feature and test files are already created by fixture
         # Create a signed policy requiring critical and high priorities
         policy_data = create_enforce_policy_data(
             licensed_to="test-owner/test-repo",
@@ -288,7 +206,9 @@ def test_refund_payment():
     feature_id="feature-5-policy-enforcement",
     scenario_id="reject-invalid-or-unsigned-policies",
 )
-def test_reject_invalid_or_unsigned_policies(acceptance_workspace) -> None:
+def test_reject_invalid_or_unsigned_policies(
+    feature_5_invalid_signature: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Reject invalid or unsigned policies
 
     Priority: critical
@@ -296,25 +216,10 @@ def test_reject_invalid_or_unsigned_policies(acceptance_workspace) -> None:
     Verifies that when a policy file has an invalid or missing signature,
     enforcement fails with a clear error and no intent evaluation is performed.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_5_invalid_signature
 
     with specleft.step("Given a policy file has an invalid or missing signature"):
-        # Create a feature (needed for enforcement to have something to check)
-        feature_content = """\
-# Feature: User Management
-priority: high
-
-## Scenarios
-
-### Scenario: Create user
-priority: critical
-
-- Given an admin
-- When creating a user
-- Then user is created
-"""
-        Path("features/feature-user-management.md").write_text(feature_content)
-
+        # Feature file is already created by fixture
         # Create a policy with tampered/invalid signature
         # Start with valid policy data, then tamper with the signature itself
         policy_data = create_core_policy_data(

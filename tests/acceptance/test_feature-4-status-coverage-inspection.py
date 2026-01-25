@@ -16,6 +16,7 @@ from click.testing import CliRunner
 
 from specleft import specleft
 from specleft.cli.main import cli
+from conftest import FeatureFiles
 
 # =============================================================================
 # Feature: Feature 4: Status & Coverage Inspection
@@ -31,7 +32,9 @@ from specleft.cli.main import cli
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="report-unimplemented-scenarios",
 )
-def test_report_unimplemented_scenarios(acceptance_workspace) -> None:
+def test_report_unimplemented_scenarios(
+    feature_4_unimplemented: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Report unimplemented scenarios
 
     Priority: high
@@ -39,51 +42,15 @@ def test_report_unimplemented_scenarios(acceptance_workspace) -> None:
     Verifies that `specleft status --unimplemented` filters output
     to show only scenarios that are not yet implemented.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_4_unimplemented
 
     with specleft.step("Given feature scenarios exist"):
-        # Create a feature with multiple scenarios
-        feature_content = """\
-# Feature: User Authentication
-priority: high
-
-## Scenarios
-
-### Scenario: User logs in successfully
-priority: critical
-
-- Given a registered user
-- When they submit valid credentials
-- Then they are authenticated
-
-### Scenario: User password reset
-priority: high
-
-- Given a user forgot password
-- When they request reset
-- Then email is sent
-
-### Scenario: User logout
-priority: medium
-
-- Given an authenticated user
-- When they click logout
-- Then session is terminated
-"""
-        Path("features/feature-user-authentication.md").write_text(feature_content)
+        # Feature file is already created by fixture
+        pass
 
     with specleft.step("And some scenarios are not implemented"):
-        # Create tests directory with only ONE implemented test
-        # The other two scenarios remain unimplemented
-        Path("tests").mkdir()
-        Path("tests/test_feature_user_authentication.py").write_text('''\
-from specleft import specleft
-
-@specleft(feature_id="feature-user-authentication", scenario_id="user-logs-in-successfully")
-def test_user_logs_in_successfully():
-    """This test IS implemented (no skip=True)."""
-    pass
-''')
+        # Test file is already created by fixture with partial implementation
+        pass
 
     with specleft.step(
         "When specleft status --unimplemented --format json is executed"
@@ -133,7 +100,9 @@ def test_user_logs_in_successfully():
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="report-implemented-scenarios",
 )
-def test_report_implemented_scenarios(acceptance_workspace) -> None:
+def test_report_implemented_scenarios(
+    feature_4_implemented: tuple[CliRunner, Path, FeatureFiles],
+) -> None:
     """Report implemented scenarios
 
     Priority: high
@@ -141,57 +110,15 @@ def test_report_implemented_scenarios(acceptance_workspace) -> None:
     Verifies that `specleft status --implemented` filters output
     to show only scenarios that are implemented.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _files = feature_4_implemented
 
     with specleft.step("Given feature scenarios exist"):
-        # Create a feature with multiple scenarios
-        feature_content = """\
-# Feature: Payment Processing
-priority: high
-
-## Scenarios
-
-### Scenario: Process credit card payment
-priority: critical
-
-- Given a valid credit card
-- When payment is submitted
-- Then transaction succeeds
-
-### Scenario: Process refund
-priority: high
-
-- Given a completed transaction
-- When refund is requested
-- Then amount is returned
-
-### Scenario: Payment history
-priority: low
-
-- Given a user account
-- When viewing history
-- Then transactions are listed
-"""
-        Path("features/feature-payment-processing.md").write_text(feature_content)
+        # Feature file is already created by fixture
+        pass
 
     with specleft.step("And some scenarios are implemented"):
-        # Create tests with TWO implemented tests
-        Path("tests").mkdir()
-        Path("tests/test_feature_payment_processing.py").write_text('''\
-from specleft import specleft
-
-@specleft(feature_id="feature-payment-processing", scenario_id="process-credit-card-payment")
-def test_process_credit_card_payment():
-    """Implemented test."""
-    pass
-
-@specleft(feature_id="feature-payment-processing", scenario_id="process-refund")
-def test_process_refund():
-    """Implemented test."""
-    pass
-
-# Note: payment-history is NOT implemented
-''')
+        # Test file is already created by fixture with partial implementation
+        pass
 
     with specleft.step("When specleft status --implemented --format json is executed"):
         result = runner.invoke(cli, ["status", "--implemented", "--format", "json"])
@@ -236,7 +163,9 @@ def test_process_refund():
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="status-of-implementation-by-feature",
 )
-def test_status_of_implementation_by_feature(acceptance_workspace) -> None:
+def test_status_of_implementation_by_feature(
+    feature_4_multi_feature_filter: tuple[CliRunner, Path, FeatureFiles, FeatureFiles],
+) -> None:
     """Status of implementation by feature
 
     Priority: medium
@@ -244,68 +173,15 @@ def test_status_of_implementation_by_feature(acceptance_workspace) -> None:
     Verifies that `specleft status --feature <id>` filters output
     to show only scenarios for that specific feature with a summary.
     """
-    runner, _workspace = acceptance_workspace
+    runner, _workspace, _auth_files, _billing_files = feature_4_multi_feature_filter
 
     with specleft.step("Given a scenario title exists"):
-        # Create multiple features to test filtering
-        # Feature 1: Auth
-        auth_content = """\
-# Feature: User Authentication
-priority: high
-
-## Scenarios
-
-### Scenario: User login
-priority: critical
-
-- Given a user
-- When they log in
-- Then success
-
-### Scenario: User signup
-priority: high
-
-- Given a new user
-- When they sign up
-- Then account created
-"""
-        Path("features/feature-auth.md").write_text(auth_content)
-
-        # Feature 2: Billing (the one we'll filter for)
-        billing_content = """\
-# Feature: Billing System
-priority: high
-
-## Scenarios
-
-### Scenario: Generate invoice
-priority: critical
-
-- Given a completed order
-- When billing runs
-- Then invoice is generated
-
-### Scenario: Apply discount
-priority: medium
-
-- Given a coupon code
-- When applied
-- Then price is reduced
-"""
-        Path("features/feature-billing.md").write_text(billing_content)
+        # Feature files are already created by fixture
+        pass
 
     with specleft.step("And test has not been implemented"):
-        # Create tests directory but no tests for billing
-        # (or only partial implementation)
-        Path("tests").mkdir()
-        Path("tests/test_feature_auth.py").write_text("""\
-from specleft import specleft
-
-@specleft(feature_id="feature-auth", scenario_id="user-login")
-def test_user_login():
-    pass
-""")
-        # No tests for billing feature - both scenarios unimplemented
+        # Test files are already created by fixture
+        pass
 
     with specleft.step(
         "When command is run spec status --feature feature-billing --format json"
