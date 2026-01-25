@@ -74,7 +74,7 @@ def write_policy_file(
     feature_id="feature-5-policy-enforcement",
     scenario_id="enforce-critical-and-high-priority-scenarios",
 )
-def test_enforce_critical_and_high_priority_scenarios() -> None:
+def test_enforce_critical_and_high_priority_scenarios(acceptance_workspace) -> None:
     """Enforce critical and high priority scenarios
 
     Priority: critical
@@ -83,15 +83,13 @@ def test_enforce_critical_and_high_priority_scenarios() -> None:
     to be implemented, and one or more are unimplemented, the command exits
     with a non-zero status and explains which intent was violated.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step(
-            "Given a signed policy requiring critical and high scenarios to be implemented"
-        ):
-            # Create a feature with critical and high priority scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step(
+        "Given a signed policy requiring critical and high scenarios to be implemented"
+    ):
+        # Create a feature with critical and high priority scenarios
+        feature_content = """\
 # Feature: User Authentication
 priority: high
 
@@ -118,27 +116,27 @@ priority: medium
 - When they click logout
 - Then session is terminated
 """
-            Path("features/feature-user-authentication.md").write_text(feature_content)
+        Path("features/feature-user-authentication.md").write_text(feature_content)
 
-            # Create a signed policy requiring critical and high priorities
-            policy_data = create_enforce_policy_data(
-                licensed_to="test-owner/test-repo",
-                coverage_threshold=1,  # Low threshold
-                coverage_fail_below=False,  # Disable coverage enforcement for this test
-                priorities={
-                    "critical": {"must_be_implemented": True},
-                    "high": {"must_be_implemented": True},
-                },
-            )
-            write_policy_file(Path("."), policy_data)
+        # Create a signed policy requiring critical and high priorities
+        policy_data = create_enforce_policy_data(
+            licensed_to="test-owner/test-repo",
+            coverage_threshold=1,  # Low threshold
+            coverage_fail_below=False,  # Disable coverage enforcement for this test
+            priorities={
+                "critical": {"must_be_implemented": True},
+                "high": {"must_be_implemented": True},
+            },
+        )
+        write_policy_file(Path("."), policy_data)
 
-        with specleft.step("And one or more such scenarios are unimplemented"):
-            # Create tests directory with NO implemented tests
-            # All critical and high scenarios remain unimplemented
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
-            # Only implement medium priority scenario (not enforced)
-            Path("tests/test_auth.py").write_text("""\
+    with specleft.step("And one or more such scenarios are unimplemented"):
+        # Create tests directory with NO implemented tests
+        # All critical and high scenarios remain unimplemented
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
+        # Only implement medium priority scenario (not enforced)
+        Path("tests/test_auth.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-user-authentication", scenario_id="user-logout")
@@ -147,49 +145,47 @@ def test_user_logout():
     pass
 """)
 
-        with specleft.step("When specleft enforce <policy.yml> is executed"):
-            with patch(
-                "specleft.commands.enforce.detect_repo_identity",
-                return_value=RepoIdentity(owner="test-owner", name="test-repo"),
-            ):
-                result = runner.invoke(
-                    cli,
-                    ["enforce", ".specleft/licenses/policy.yml", "--format", "json"],
-                )
-
-        with specleft.step("Then the command exits with a non-zero status"):
-            assert result.exit_code != 0, (
-                f"Expected non-zero exit code but got {result.exit_code}. "
-                f"Output: {result.output}"
+    with specleft.step("When specleft enforce <policy.yml> is executed"):
+        with patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ):
+            result = runner.invoke(
+                cli,
+                ["enforce", ".specleft/licenses/policy.yml", "--format", "json"],
             )
 
-        with specleft.step(
-            "And the failure message explains which intent was violated"
-        ):
-            # Parse JSON output
-            payload = json.loads(result.output)
+    with specleft.step("Then the command exits with a non-zero status"):
+        assert result.exit_code != 0, (
+            f"Expected non-zero exit code but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            # Verify the response indicates failure
-            assert payload["failed"] is True, "Expected 'failed' to be True"
+    with specleft.step("And the failure message explains which intent was violated"):
+        # Parse JSON output
+        payload = json.loads(result.output)
 
-            # Verify priority violations are reported
-            violations = payload["priority_violations"]
-            assert len(violations) >= 1, "Expected at least one priority violation"
+        # Verify the response indicates failure
+        assert payload["failed"] is True, "Expected 'failed' to be True"
 
-            # Check that the violations include the unimplemented critical/high scenarios
-            violation_scenario_ids = {v["scenario_id"] for v in violations}
+        # Verify priority violations are reported
+        violations = payload["priority_violations"]
+        assert len(violations) >= 1, "Expected at least one priority violation"
 
-            # At least the critical scenario should be reported as violated
-            assert (
-                "user-login-critical" in violation_scenario_ids
-            ), f"Expected 'user-login-critical' in violations but got: {violation_scenario_ids}"
+        # Check that the violations include the unimplemented critical/high scenarios
+        violation_scenario_ids = {v["scenario_id"] for v in violations}
+
+        # At least the critical scenario should be reported as violated
+        assert (
+            "user-login-critical" in violation_scenario_ids
+        ), f"Expected 'user-login-critical' in violations but got: {violation_scenario_ids}"
 
 
 @specleft(
     feature_id="feature-5-policy-enforcement",
     scenario_id="pass-enforcement-when-intent-is-satisfied",
 )
-def test_pass_enforcement_when_intent_is_satisfied() -> None:
+def test_pass_enforcement_when_intent_is_satisfied(acceptance_workspace) -> None:
     """Pass enforcement when intent is satisfied
 
     Priority: high
@@ -197,15 +193,13 @@ def test_pass_enforcement_when_intent_is_satisfied() -> None:
     Verifies that when all critical and high priority scenarios are implemented,
     the enforcement command exits successfully.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step(
-            "Given all critical and high priority scenarios are implemented"
-        ):
-            # Create a feature with critical and high priority scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step(
+        "Given all critical and high priority scenarios are implemented"
+    ):
+        # Create a feature with critical and high priority scenarios
+        feature_content = """\
 # Feature: Payment Processing
 priority: high
 
@@ -232,11 +226,11 @@ priority: low
 - When viewing history
 - Then transactions are listed
 """
-            Path("features/feature-payment-processing.md").write_text(feature_content)
+        Path("features/feature-payment-processing.md").write_text(feature_content)
 
-            # Create tests implementing all critical and high priority scenarios
-            Path("tests").mkdir()
-            Path("tests/test_payment.py").write_text("""\
+        # Create tests implementing all critical and high priority scenarios
+        Path("tests").mkdir()
+        Path("tests/test_payment.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-payment-processing", scenario_id="process-payment")
@@ -252,49 +246,49 @@ def test_refund_payment():
 # Note: view-payment-history (low priority) intentionally not implemented
 """)
 
-            # Create a signed policy requiring critical and high priorities
-            policy_data = create_enforce_policy_data(
-                licensed_to="test-owner/test-repo",
-                coverage_threshold=1,  # Low threshold
-                coverage_fail_below=False,  # Disable coverage enforcement for this test
-                priorities={
-                    "critical": {"must_be_implemented": True},
-                    "high": {"must_be_implemented": True},
-                },
+        # Create a signed policy requiring critical and high priorities
+        policy_data = create_enforce_policy_data(
+            licensed_to="test-owner/test-repo",
+            coverage_threshold=1,  # Low threshold
+            coverage_fail_below=False,  # Disable coverage enforcement for this test
+            priorities={
+                "critical": {"must_be_implemented": True},
+                "high": {"must_be_implemented": True},
+            },
+        )
+        write_policy_file(Path("."), policy_data)
+
+    with specleft.step("When enforcement is executed"):
+        with patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ):
+            result = runner.invoke(
+                cli,
+                ["enforce", ".specleft/licenses/policy.yml", "--format", "json"],
             )
-            write_policy_file(Path("."), policy_data)
 
-        with specleft.step("When enforcement is executed"):
-            with patch(
-                "specleft.commands.enforce.detect_repo_identity",
-                return_value=RepoIdentity(owner="test-owner", name="test-repo"),
-            ):
-                result = runner.invoke(
-                    cli,
-                    ["enforce", ".specleft/licenses/policy.yml", "--format", "json"],
-                )
-
-        with specleft.step("Then the command exits successfully"):
-            # Parse the output to check for violations
-            if result.output.strip().startswith("{"):
-                payload = json.loads(result.output)
-                assert payload["failed"] is False, (
-                    f"Expected 'failed' to be False but policy reported violations: "
-                    f"priority={payload.get('priority_violations', [])} "
-                    f"coverage={payload.get('coverage_violations', [])}"
-                )
-
-            assert result.exit_code == 0, (
-                f"Expected exit code 0 but got {result.exit_code}. "
-                f"Output: {result.output}"
+    with specleft.step("Then the command exits successfully"):
+        # Parse the output to check for violations
+        if result.output.strip().startswith("{"):
+            payload = json.loads(result.output)
+            assert payload["failed"] is False, (
+                f"Expected 'failed' to be False but policy reported violations: "
+                f"priority={payload.get('priority_violations', [])} "
+                f"coverage={payload.get('coverage_violations', [])}"
             )
+
+        assert result.exit_code == 0, (
+            f"Expected exit code 0 but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
 
 @specleft(
     feature_id="feature-5-policy-enforcement",
     scenario_id="reject-invalid-or-unsigned-policies",
 )
-def test_reject_invalid_or_unsigned_policies() -> None:
+def test_reject_invalid_or_unsigned_policies(acceptance_workspace) -> None:
     """Reject invalid or unsigned policies
 
     Priority: critical
@@ -302,13 +296,11 @@ def test_reject_invalid_or_unsigned_policies() -> None:
     Verifies that when a policy file has an invalid or missing signature,
     enforcement fails with a clear error and no intent evaluation is performed.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a policy file has an invalid or missing signature"):
-            # Create a feature (needed for enforcement to have something to check)
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given a policy file has an invalid or missing signature"):
+        # Create a feature (needed for enforcement to have something to check)
+        feature_content = """\
 # Feature: User Management
 priority: high
 
@@ -321,73 +313,73 @@ priority: critical
 - When creating a user
 - Then user is created
 """
-            Path("features/feature-user-management.md").write_text(feature_content)
+        Path("features/feature-user-management.md").write_text(feature_content)
 
-            # Create a policy with tampered/invalid signature
-            # Start with valid policy data, then tamper with the signature itself
-            policy_data = create_core_policy_data(
-                licensed_to="test-owner/test-repo",
-                priorities={"critical": {"must_be_implemented": True}},
+        # Create a policy with tampered/invalid signature
+        # Start with valid policy data, then tamper with the signature itself
+        policy_data = create_core_policy_data(
+            licensed_to="test-owner/test-repo",
+            priorities={"critical": {"must_be_implemented": True}},
+        )
+
+        # Tamper with the signature value to make it invalid
+        # This will cause signature verification to fail
+        policy_data["signature"]["value"] = (
+            "AAAA" + policy_data["signature"]["value"][4:]
+        )
+
+        # Write the tampered policy
+        write_policy_file(Path("."), policy_data, filename="policy-invalid.yml")
+
+    with specleft.step("When enforcement is executed"):
+        with patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ):
+            result = runner.invoke(
+                cli,
+                ["enforce", ".specleft/licenses/policy-invalid.yml"],
             )
 
-            # Tamper with the signature value to make it invalid
-            # This will cause signature verification to fail
-            policy_data["signature"]["value"] = (
-                "AAAA" + policy_data["signature"]["value"][4:]
-            )
+    with specleft.step("Then enforcement fails with a clear error"):
+        # Should exit with code 2 (license/signature issue)
+        assert result.exit_code == 2, (
+            f"Expected exit code 2 (license error) but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            # Write the tampered policy
-            write_policy_file(Path("."), policy_data, filename="policy-invalid.yml")
+        # Should contain error about signature
+        output_lower = result.output.lower()
+        assert (
+            "signature" in output_lower or "invalid" in output_lower
+        ), f"Expected error message about invalid signature. Got: {result.output}"
 
-        with specleft.step("When enforcement is executed"):
-            with patch(
-                "specleft.commands.enforce.detect_repo_identity",
-                return_value=RepoIdentity(owner="test-owner", name="test-repo"),
-            ):
-                result = runner.invoke(
-                    cli,
-                    ["enforce", ".specleft/licenses/policy-invalid.yml"],
-                )
+    with specleft.step("And no intent evaluation is performed"):
+        # If signature is invalid, the command should fail early
+        # and NOT show any violation messages (no evaluation happened)
+        output_lower = result.output.lower()
 
-        with specleft.step("Then enforcement fails with a clear error"):
-            # Should exit with code 2 (license/signature issue)
-            assert result.exit_code == 2, (
-                f"Expected exit code 2 (license error) but got {result.exit_code}. "
-                f"Output: {result.output}"
-            )
+        # Should NOT see priority violation messages (those would indicate evaluation ran)
+        assert (
+            "priority violations" not in output_lower
+        ), "Expected no intent evaluation but saw priority violation messages"
 
-            # Should contain error about signature
-            output_lower = result.output.lower()
-            assert (
-                "signature" in output_lower or "invalid" in output_lower
-            ), f"Expected error message about invalid signature. Got: {result.output}"
+        # Should NOT see "all checks passed" (that would indicate evaluation ran)
+        assert (
+            "all checks passed" not in output_lower
+        ), "Expected no intent evaluation but saw 'all checks passed'"
 
-        with specleft.step("And no intent evaluation is performed"):
-            # If signature is invalid, the command should fail early
-            # and NOT show any violation messages (no evaluation happened)
-            output_lower = result.output.lower()
-
-            # Should NOT see priority violation messages (those would indicate evaluation ran)
-            assert (
-                "priority violations" not in output_lower
-            ), "Expected no intent evaluation but saw priority violation messages"
-
-            # Should NOT see "all checks passed" (that would indicate evaluation ran)
-            assert (
-                "all checks passed" not in output_lower
-            ), "Expected no intent evaluation but saw 'all checks passed'"
-
-        with specleft.step("And Documentation link is shown"):
-            # Per PRD, a documentation link should be shown for invalid policies
-            # NOTE: Current implementation doesn't show a doc link for signature failures.
-            # This is a known gap - the handle_verification_failure function only shows
-            # links for EVALUATION_EXPIRED, EXPIRED, and REPO_MISMATCH failures.
-            # For now, we verify that the error message is clear and actionable.
-            # TODO: Implementation should add documentation link for signature failures
-            output_lower = result.output.lower()
-            assert (
-                "signature" in output_lower
-                or "https://" in result.output
-                or "documentation" in output_lower
-                or "docs" in output_lower
-            ), f"Expected clear error message or documentation link. Got: {result.output}"
+    with specleft.step("And Documentation link is shown"):
+        # Per PRD, a documentation link should be shown for invalid policies
+        # NOTE: Current implementation doesn't show a doc link for signature failures.
+        # This is a known gap - the handle_verification_failure function only shows
+        # links for EVALUATION_EXPIRED, EXPIRED, and REPO_MISMATCH failures.
+        # For now, we verify that the error message is clear and actionable.
+        # TODO: Implementation should add documentation link for signature failures
+        output_lower = result.output.lower()
+        assert (
+            "signature" in output_lower
+            or "https://" in result.output
+            or "documentation" in output_lower
+            or "docs" in output_lower
+        ), f"Expected clear error message or documentation link. Got: {result.output}"

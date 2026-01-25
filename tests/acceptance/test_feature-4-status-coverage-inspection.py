@@ -31,7 +31,7 @@ from specleft.cli.main import cli
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="report-unimplemented-scenarios",
 )
-def test_report_unimplemented_scenarios() -> None:
+def test_report_unimplemented_scenarios(acceptance_workspace) -> None:
     """Report unimplemented scenarios
 
     Priority: high
@@ -39,13 +39,11 @@ def test_report_unimplemented_scenarios() -> None:
     Verifies that `specleft status --unimplemented` filters output
     to show only scenarios that are not yet implemented.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given feature scenarios exist"):
-            # Create a feature with multiple scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given feature scenarios exist"):
+        # Create a feature with multiple scenarios
+        feature_content = """\
 # Feature: User Authentication
 priority: high
 
@@ -72,72 +70,70 @@ priority: medium
 - When they click logout
 - Then session is terminated
 """
-            Path("features/feature-user-authentication.md").write_text(feature_content)
+        Path("features/feature-user-authentication.md").write_text(feature_content)
 
-        with specleft.step("And some scenarios are not implemented"):
-            # Create tests directory with only ONE implemented test
-            # The other two scenarios remain unimplemented
-            Path("tests").mkdir()
-            Path("tests/test_feature_user_authentication.py").write_text("""\
+    with specleft.step("And some scenarios are not implemented"):
+        # Create tests directory with only ONE implemented test
+        # The other two scenarios remain unimplemented
+        Path("tests").mkdir()
+        Path("tests/test_feature_user_authentication.py").write_text('''\
 from specleft import specleft
 
 @specleft(feature_id="feature-user-authentication", scenario_id="user-logs-in-successfully")
 def test_user_logs_in_successfully():
-    \"\"\"This test IS implemented (no skip=True).\"\"\"
+    """This test IS implemented (no skip=True)."""
     pass
-""")
+''')
 
-        with specleft.step(
-            "When specleft status --unimplemented --format json is executed"
-        ):
-            result = runner.invoke(
-                cli, ["status", "--unimplemented", "--format", "json"]
-            )
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            payload = json.loads(result.output)
+    with specleft.step(
+        "When specleft status --unimplemented --format json is executed"
+    ):
+        result = runner.invoke(cli, ["status", "--unimplemented", "--format", "json"])
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+        payload = json.loads(result.output)
 
-        with specleft.step("Then unimplemented scenarios are reported clearly"):
-            # Should have features in output
-            assert "features" in payload, "Expected 'features' key in JSON output"
-            assert len(payload["features"]) >= 1, "Expected at least one feature"
+    with specleft.step("Then unimplemented scenarios are reported clearly"):
+        # Should have features in output
+        assert "features" in payload, "Expected 'features' key in JSON output"
+        assert len(payload["features"]) >= 1, "Expected at least one feature"
 
-            feature = payload["features"][0]
-            scenarios = feature["scenarios"]
+        feature = payload["features"][0]
+        scenarios = feature["scenarios"]
 
-            # Should only contain unimplemented (skipped) scenarios
-            scenario_ids = {s["id"] for s in scenarios}
+        # Should only contain unimplemented (skipped) scenarios
+        scenario_ids = {s["id"] for s in scenarios}
 
-            # user-logs-in-successfully should NOT be in the list (it's implemented)
+        # user-logs-in-successfully should NOT be in the list (it's implemented)
+        assert (
+            "user-logs-in-successfully" not in scenario_ids
+        ), "Implemented scenario should not appear in --unimplemented output"
+
+        # The other two should be present
+        assert (
+            "user-password-reset" in scenario_ids
+        ), "Unimplemented scenario 'user-password-reset' should be reported"
+        assert (
+            "user-logout" in scenario_ids
+        ), "Unimplemented scenario 'user-logout' should be reported"
+
+        # Verify status field indicates skipped
+        for scenario in scenarios:
             assert (
-                "user-logs-in-successfully" not in scenario_ids
-            ), "Implemented scenario should not appear in --unimplemented output"
+                scenario["status"] == "skipped"
+            ), f"Expected status 'skipped' for {scenario['id']}, got '{scenario['status']}'"
 
-            # The other two should be present
-            assert (
-                "user-password-reset" in scenario_ids
-            ), "Unimplemented scenario 'user-password-reset' should be reported"
-            assert (
-                "user-logout" in scenario_ids
-            ), "Unimplemented scenario 'user-logout' should be reported"
-
-            # Verify status field indicates skipped
-            for scenario in scenarios:
-                assert (
-                    scenario["status"] == "skipped"
-                ), f"Expected status 'skipped' for {scenario['id']}, got '{scenario['status']}'"
-
-            # Verify summary reflects filtered results
-            assert "summary" in payload, "Expected 'summary' in output"
-            assert payload["summary"]["skipped"] == len(
-                scenarios
-            ), "Summary skipped count should match filtered scenarios"
+        # Verify summary reflects filtered results
+        assert "summary" in payload, "Expected 'summary' in output"
+        assert payload["summary"]["skipped"] == len(
+            scenarios
+        ), "Summary skipped count should match filtered scenarios"
 
 
 @specleft(
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="report-implemented-scenarios",
 )
-def test_report_implemented_scenarios() -> None:
+def test_report_implemented_scenarios(acceptance_workspace) -> None:
     """Report implemented scenarios
 
     Priority: high
@@ -145,13 +141,11 @@ def test_report_implemented_scenarios() -> None:
     Verifies that `specleft status --implemented` filters output
     to show only scenarios that are implemented.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given feature scenarios exist"):
-            # Create a feature with multiple scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given feature scenarios exist"):
+        # Create a feature with multiple scenarios
+        feature_content = """\
 # Feature: Payment Processing
 priority: high
 
@@ -178,76 +172,71 @@ priority: low
 - When viewing history
 - Then transactions are listed
 """
-            Path("features/feature-payment-processing.md").write_text(feature_content)
+        Path("features/feature-payment-processing.md").write_text(feature_content)
 
-        with specleft.step("And some scenarios are implemented"):
-            # Create tests with TWO implemented tests
-            Path("tests").mkdir()
-            Path("tests/test_feature_payment_processing.py").write_text("""\
+    with specleft.step("And some scenarios are implemented"):
+        # Create tests with TWO implemented tests
+        Path("tests").mkdir()
+        Path("tests/test_feature_payment_processing.py").write_text('''\
 from specleft import specleft
 
 @specleft(feature_id="feature-payment-processing", scenario_id="process-credit-card-payment")
 def test_process_credit_card_payment():
-    \"\"\"Implemented test.\"\"\"
+    """Implemented test."""
     pass
 
 @specleft(feature_id="feature-payment-processing", scenario_id="process-refund")
 def test_process_refund():
-    \"\"\"Implemented test.\"\"\"
+    """Implemented test."""
     pass
 
 # Note: payment-history is NOT implemented
-""")
+''')
 
-        with specleft.step(
-            "When specleft status --implemented --format json is executed"
-        ):
-            result = runner.invoke(cli, ["status", "--implemented", "--format", "json"])
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            payload = json.loads(result.output)
+    with specleft.step("When specleft status --implemented --format json is executed"):
+        result = runner.invoke(cli, ["status", "--implemented", "--format", "json"])
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+        payload = json.loads(result.output)
 
-        with specleft.step("Then implemented scenarios are reported clearly"):
-            # Should have features in output
-            assert "features" in payload, "Expected 'features' key in JSON output"
-            assert len(payload["features"]) >= 1, "Expected at least one feature"
+    with specleft.step("Then implemented scenarios are reported clearly"):
+        # Should have features in output
+        assert "features" in payload, "Expected 'features' key in JSON output"
+        assert len(payload["features"]) >= 1, "Expected at least one feature"
 
-            feature = payload["features"][0]
-            scenarios = feature["scenarios"]
+        feature = payload["features"][0]
+        scenarios = feature["scenarios"]
 
-            # Should only contain implemented scenarios
-            scenario_ids = {s["id"] for s in scenarios}
+        # Should only contain implemented scenarios
+        scenario_ids = {s["id"] for s in scenarios}
 
-            # payment-history should NOT be in the list (it's not implemented)
+        assert (
+            "process-credit-card-payment" in scenario_ids
+        ), "Implemented scenario should be reported"
+        assert (
+            "process-refund" in scenario_ids
+        ), "Implemented scenario should be reported"
+        assert (
+            "payment-history" not in scenario_ids
+        ), "Unimplemented scenario should not appear in --implemented output"
+
+        # Verify status field indicates implemented
+        for scenario in scenarios:
             assert (
-                "payment-history" not in scenario_ids
-            ), "Unimplemented scenario should not appear in --implemented output"
+                scenario["status"] == "implemented"
+            ), f"Expected status 'implemented' for {scenario['id']}, got '{scenario['status']}'"
 
-            # The implemented ones should be present
-            assert (
-                "process-credit-card-payment" in scenario_ids
-            ), "Implemented scenario 'process-credit-card-payment' should be reported"
-            assert (
-                "process-refund" in scenario_ids
-            ), "Implemented scenario 'process-refund' should be reported"
-
-            # Verify status field indicates implemented
-            for scenario in scenarios:
-                assert (
-                    scenario["status"] == "implemented"
-                ), f"Expected status 'implemented' for {scenario['id']}, got '{scenario['status']}'"
-
-            # Verify summary reflects filtered results
-            assert "summary" in payload, "Expected 'summary' in output"
-            assert payload["summary"]["implemented"] == len(
-                scenarios
-            ), "Summary implemented count should match filtered scenarios"
+        # Verify summary reflects filtered results
+        assert "summary" in payload, "Expected 'summary' in output"
+        assert payload["summary"]["implemented"] == len(
+            scenarios
+        ), "Summary implemented count should match filtered scenarios"
 
 
 @specleft(
     feature_id="feature-4-status-coverage-inspection",
     scenario_id="status-of-implementation-by-feature",
 )
-def test_status_of_implementation_by_feature() -> None:
+def test_status_of_implementation_by_feature(acceptance_workspace) -> None:
     """Status of implementation by feature
 
     Priority: medium
@@ -255,15 +244,12 @@ def test_status_of_implementation_by_feature() -> None:
     Verifies that `specleft status --feature <id>` filters output
     to show only scenarios for that specific feature with a summary.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a scenario title exists"):
-            # Create multiple features to test filtering
-            Path("features").mkdir()
-
-            # Feature 1: Auth
-            auth_content = """\
+    with specleft.step("Given a scenario title exists"):
+        # Create multiple features to test filtering
+        # Feature 1: Auth
+        auth_content = """\
 # Feature: User Authentication
 priority: high
 
@@ -283,10 +269,10 @@ priority: high
 - When they sign up
 - Then account created
 """
-            Path("features/feature-auth.md").write_text(auth_content)
+        Path("features/feature-auth.md").write_text(auth_content)
 
-            # Feature 2: Billing (the one we'll filter for)
-            billing_content = """\
+        # Feature 2: Billing (the one we'll filter for)
+        billing_content = """\
 # Feature: Billing System
 priority: high
 
@@ -306,86 +292,84 @@ priority: medium
 - When applied
 - Then price is reduced
 """
-            Path("features/feature-billing.md").write_text(billing_content)
+        Path("features/feature-billing.md").write_text(billing_content)
 
-        with specleft.step("And test has not been implemented"):
-            # Create tests directory but no tests for billing
-            # (or only partial implementation)
-            Path("tests").mkdir()
-            Path("tests/test_feature_auth.py").write_text("""\
+    with specleft.step("And test has not been implemented"):
+        # Create tests directory but no tests for billing
+        # (or only partial implementation)
+        Path("tests").mkdir()
+        Path("tests/test_feature_auth.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-auth", scenario_id="user-login")
 def test_user_login():
     pass
 """)
-            # No tests for billing feature - both scenarios unimplemented
+        # No tests for billing feature - both scenarios unimplemented
 
-        with specleft.step(
-            "When command is run spec status --feature feature-billing --format json"
-        ):
-            result = runner.invoke(
-                cli, ["status", "--feature", "feature-billing", "--format", "json"]
-            )
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            payload = json.loads(result.output)
+    with specleft.step(
+        "When command is run spec status --feature feature-billing --format json"
+    ):
+        result = runner.invoke(
+            cli, ["status", "--feature", "feature-billing", "--format", "json"]
+        )
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+        payload = json.loads(result.output)
 
-        with specleft.step(
-            "Then feature summary is given for the scenarios and it's status"
-        ):
-            # Should only have the billing feature
-            assert "features" in payload, "Expected 'features' key in JSON output"
+    with specleft.step(
+        "Then feature summary is given for the scenarios and it's status"
+    ):
+        # Should only have the billing feature
+        assert "features" in payload, "Expected 'features' key in JSON output"
+        assert (
+            len(payload["features"]) == 1
+        ), f"Expected exactly 1 feature (billing), got {len(payload['features'])}"
+
+        feature = payload["features"][0]
+
+        # Verify it's the billing feature
+        assert (
+            feature["feature_id"] == "feature-billing"
+        ), f"Expected feature-billing, got {feature['feature_id']}"
+
+        # Verify scenarios are present
+        scenarios = feature["scenarios"]
+        assert len(scenarios) == 2, f"Expected 2 scenarios, got {len(scenarios)}"
+
+        scenario_ids = {s["id"] for s in scenarios}
+        assert "generate-invoice" in scenario_ids
+        assert "apply-discount" in scenario_ids
+
+        # Verify each scenario has status
+        for scenario in scenarios:
             assert (
-                len(payload["features"]) == 1
-            ), f"Expected exactly 1 feature (billing), got {len(payload['features'])}"
-
-            feature = payload["features"][0]
-
-            # Verify it's the billing feature
+                "status" in scenario
+            ), f"Missing 'status' for scenario {scenario['id']}"
+            # Both should be skipped since no tests exist
             assert (
-                feature["feature_id"] == "feature-billing"
-            ), f"Expected feature-billing, got {feature['feature_id']}"
+                scenario["status"] == "skipped"
+            ), f"Expected 'skipped' for {scenario['id']}, got '{scenario['status']}'"
 
-            # Verify scenarios are present
-            scenarios = feature["scenarios"]
-            assert len(scenarios) == 2, f"Expected 2 scenarios, got {len(scenarios)}"
+        # Verify feature-level summary
+        assert "summary" in feature, "Expected 'summary' in feature"
+        feature_summary = feature["summary"]
+        assert "total_scenarios" in feature_summary
+        assert "implemented" in feature_summary
+        assert "skipped" in feature_summary
+        assert feature_summary["total_scenarios"] == 2
+        assert feature_summary["implemented"] == 0
+        assert feature_summary["skipped"] == 2
 
-            scenario_ids = {s["id"] for s in scenarios}
-            assert "generate-invoice" in scenario_ids
-            assert "apply-discount" in scenario_ids
+        # Verify coverage_percent at feature level
+        assert "coverage_percent" in feature, "Expected 'coverage_percent' in feature"
+        assert (
+            feature["coverage_percent"] == 0
+        ), f"Expected 0% coverage, got {feature['coverage_percent']}%"
 
-            # Verify each scenario has status
-            for scenario in scenarios:
-                assert (
-                    "status" in scenario
-                ), f"Missing 'status' for scenario {scenario['id']}"
-                # Both should be skipped since no tests exist
-                assert (
-                    scenario["status"] == "skipped"
-                ), f"Expected 'skipped' for {scenario['id']}, got '{scenario['status']}'"
-
-            # Verify feature-level summary
-            assert "summary" in feature, "Expected 'summary' in feature"
-            feature_summary = feature["summary"]
-            assert "total_scenarios" in feature_summary
-            assert "implemented" in feature_summary
-            assert "skipped" in feature_summary
-            assert feature_summary["total_scenarios"] == 2
-            assert feature_summary["implemented"] == 0
-            assert feature_summary["skipped"] == 2
-
-            # Verify coverage_percent at feature level
-            assert (
-                "coverage_percent" in feature
-            ), "Expected 'coverage_percent' in feature"
-            assert (
-                feature["coverage_percent"] == 0
-            ), f"Expected 0% coverage, got {feature['coverage_percent']}%"
-
-            # Verify overall summary only counts the filtered feature
-            assert "summary" in payload, "Expected 'summary' in payload"
-            overall = payload["summary"]
-            assert overall["total_features"] == 1, "Should only count filtered feature"
-            assert (
-                overall["total_scenarios"] == 2
-            ), "Should only count scenarios from filtered feature"
+        # Verify overall summary only counts the filtered feature
+        assert "summary" in payload, "Expected 'summary' in payload"
+        overall = payload["summary"]
+        assert overall["total_features"] == 1, "Should only count filtered feature"
+        assert (
+            overall["total_scenarios"] == 2
+        ), "Should only count scenarios from filtered feature"

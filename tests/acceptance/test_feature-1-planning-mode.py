@@ -27,7 +27,7 @@ from specleft.cli.main import cli
     feature_id="feature-1-planning-mode",
     scenario_id="generate-feature-files-from-prd",
 )
-def test_generate_feature_files_from_prd() -> None:
+def test_generate_feature_files_from_prd(acceptance_workspace) -> None:
     """Generate feature files from PRD
 
     Priority: critical
@@ -36,12 +36,11 @@ def test_generate_feature_files_from_prd() -> None:
     each feature maps to a user-visible capability, and no code or
     test files are modified.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a repository contains a prd.md"):
-            # Create a PRD with multiple features as user-visible capabilities
-            prd_content = """\
+    with specleft.step("Given a repository contains a prd.md"):
+        # Create a PRD with multiple features as user-visible capabilities
+        prd_content = """\
 # Product Requirements
 
 ## Feature 1: User Authentication
@@ -64,69 +63,64 @@ priority: high
 - When payment is submitted
 - Then the transaction succeeds
 """
-            Path("prd.md").write_text(prd_content)
+        Path("prd.md").write_text(prd_content)
 
-            # Create a dummy src/ and tests/ to verify they are not modified
-            Path("src").mkdir()
-            Path("src/app.py").write_text("# Application code\n")
-            Path("tests").mkdir()
-            Path("tests/test_app.py").write_text("# Test code\n")
+        # Create a dummy src/ and tests/ to verify they are not modified
+        Path("src").mkdir()
+        Path("src/app.py").write_text("# Application code\n")
+        Path("tests").mkdir()
+        Path("tests/test_app.py").write_text("# Test code\n")
 
-            # Record original content for later comparison
-            original_src = Path("src/app.py").read_text()
-            original_test = Path("tests/test_app.py").read_text()
+        # Record original content for later comparison
+        original_src = Path("src/app.py").read_text()
+        original_test = Path("tests/test_app.py").read_text()
 
-        with specleft.step("When specleft plan is executed"):
-            result = runner.invoke(cli, ["plan"])
+    with specleft.step("When specleft plan is executed"):
+        result = runner.invoke(cli, ["plan"])
 
-        with specleft.step("Then feature files are created under features/"):
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            assert Path("features").exists(), "features/ directory not created"
-            assert Path("features").is_dir(), "features/ is not a directory"
+    with specleft.step("Then feature files are created under features/"):
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+        assert Path("features").exists(), "features/ directory not created"
+        assert Path("features").is_dir(), "features/ is not a directory"
 
-            # Should have created feature files
-            feature_files = list(Path("features").glob("*.md"))
-            assert (
-                len(feature_files) >= 2
-            ), f"Expected at least 2 feature files, got {len(feature_files)}"
+        # Should have created feature files
+        feature_files = list(Path("features").glob("*.md"))
+        assert (
+            len(feature_files) >= 2
+        ), f"Expected at least 2 feature files, got {len(feature_files)}"
 
-        with specleft.step("And each feature maps to a user-visible capability"):
-            # Check that feature files correspond to PRD headings
-            auth_feature = Path("features/feature-1-user-authentication.md")
-            payment_feature = Path("features/feature-2-payment-processing.md")
+    with specleft.step("And each feature maps to a user-visible capability"):
+        # Check that feature files correspond to PRD headings
+        auth_feature = Path("features/feature-1-user-authentication.md")
+        payment_feature = Path("features/feature-2-payment-processing.md")
 
-            assert auth_feature.exists(), f"Expected {auth_feature} to exist"
-            assert payment_feature.exists(), f"Expected {payment_feature} to exist"
+        assert auth_feature.exists(), f"Expected {auth_feature} to exist"
+        assert payment_feature.exists(), f"Expected {payment_feature} to exist"
 
-            # Verify content structure - should contain Feature title
-            auth_content = auth_feature.read_text()
-            assert "# Feature:" in auth_content, "Feature file missing Feature header"
-            assert (
-                "Authentication" in auth_content
-                or "authentication" in auth_content.lower()
-            )
+        # Verify content structure - should contain Feature title
+        auth_content = auth_feature.read_text()
+        assert "# Feature:" in auth_content, "Feature file missing Feature header"
+        assert (
+            "Authentication" in auth_content or "authentication" in auth_content.lower()
+        )
 
-            payment_content = payment_feature.read_text()
-            assert (
-                "# Feature:" in payment_content
-            ), "Feature file missing Feature header"
-            assert "Payment" in payment_content or "payment" in payment_content.lower()
+        payment_content = payment_feature.read_text()
+        assert "# Feature:" in payment_content, "Feature file missing Feature header"
+        assert "Payment" in payment_content or "payment" in payment_content.lower()
 
-        with specleft.step("And no code or test files are modified"):
-            # Verify that source and test files remain unchanged
-            assert (
-                Path("src/app.py").read_text() == original_src
-            ), "src/app.py was modified"
-            assert (
-                Path("tests/test_app.py").read_text() == original_test
-            ), "tests/test_app.py was modified"
+    with specleft.step("And no code or test files are modified"):
+        # Verify that source and test files remain unchanged
+        assert Path("src/app.py").read_text() == original_src, "src/app.py was modified"
+        assert (
+            Path("tests/test_app.py").read_text() == original_test
+        ), "tests/test_app.py was modified"
 
 
 @specleft(
     feature_id="feature-1-planning-mode",
     scenario_id="derive-feature-filenames-from-prd-headings",
 )
-def test_derive_feature_filenames_from_prd_headings() -> None:
+def test_derive_feature_filenames_from_prd_headings(acceptance_workspace) -> None:
     """Derive feature filenames from PRD headings
 
     Priority: critical
@@ -134,12 +128,11 @@ def test_derive_feature_filenames_from_prd_headings() -> None:
     Verifies that filenames are derived as slugs from feature titles
     and existing feature files are not overwritten.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given the PRD contains multiple feature sections"):
-            # Create a PRD with varied heading styles to test slug generation
-            prd_content = """\
+    with specleft.step("Given the PRD contains multiple feature sections"):
+        # Create a PRD with varied heading styles to test slug generation
+        prd_content = """\
 # Product Requirements Document
 
 ## Feature: User Authentication & Login
@@ -162,61 +155,60 @@ priority: high
 - When export is requested
 - Then file is created
 """
-            Path("prd.md").write_text(prd_content)
+        Path("prd.md").write_text(prd_content)
 
-            # Pre-create an existing feature file to test non-overwrite behaviour
-            Path("features").mkdir()
-            existing_content = "# Feature: User Authentication & Login\n\nCustom content that should NOT be overwritten.\n"
-            Path("features/feature-user-authentication-login.md").write_text(
-                existing_content
-            )
+        # Pre-create an existing feature file to test non-overwrite behaviour
+        existing_content = "# Feature: User Authentication & Login\n\nCustom content that should NOT be overwritten.\n"
+        Path("features/feature-user-authentication-login.md").write_text(
+            existing_content
+        )
 
-        with specleft.step("When feature files are generated"):
-            result = runner.invoke(cli, ["plan"])
-            assert result.exit_code == 0, f"Command failed: {result.output}"
+    with specleft.step("When feature files are generated"):
+        result = runner.invoke(cli, ["plan"])
+        assert result.exit_code == 0, f"Command failed: {result.output}"
 
-        with specleft.step("Then filenames are derived as slugs from feature titles"):
-            # Slugs should be lowercase, hyphenated, without special characters
-            # "User Authentication & Login" -> "feature-user-authentication-login"
-            # "Data Export (CSV/JSON)" -> "feature-data-export-csv-json"
-            auth_file = Path("features/feature-user-authentication-login.md")
-            export_file = Path("features/feature-data-export-csv-json.md")
+    with specleft.step("Then filenames are derived as slugs from feature titles"):
+        # Slugs should be lowercase, hyphenated, without special characters
+        # "User Authentication & Login" -> "feature-user-authentication-login"
+        # "Data Export (CSV/JSON)" -> "feature-data-export-csv-json"
+        auth_file = Path("features/feature-user-authentication-login.md")
+        export_file = Path("features/feature-data-export-csv-json.md")
 
-            # At minimum, the export file should be created (auth was pre-existing)
-            assert export_file.exists(), f"Expected {export_file} to be created as slug"
+        # At minimum, the export file should be created (auth was pre-existing)
+        assert export_file.exists(), f"Expected {export_file} to be created as slug"
 
-            # Verify slug naming - no uppercase, no special chars
-            for feature_file in Path("features").glob("*.md"):
-                filename = feature_file.stem
-                assert (
-                    filename == filename.lower()
-                ), f"Filename {filename} should be lowercase"
-                # Slugs should not contain characters like &, (, ), /
-                assert "&" not in filename, f"Filename {filename} contains '&'"
-                assert "(" not in filename, f"Filename {filename} contains '('"
-                assert ")" not in filename, f"Filename {filename} contains ')'"
-
-        with specleft.step("And existing feature files are not overwritten"):
-            # The pre-existing file should retain its original content
-            auth_file = Path("features/feature-user-authentication-login.md")
-            current_content = auth_file.read_text()
-            assert current_content == existing_content, (
-                f"Existing feature file was overwritten.\n"
-                f"Expected: {existing_content!r}\n"
-                f"Got: {current_content!r}"
-            )
-
-            # Output should indicate the file was skipped
+        # Verify slug naming - no uppercase, no special chars
+        for feature_file in Path("features").glob("*.md"):
+            filename = feature_file.stem
             assert (
-                "Skipped" in result.output or "skipped" in result.output.lower()
-            ), "Expected indication that existing file was skipped"
+                filename == filename.lower()
+            ), f"Filename {filename} should be lowercase"
+            # Slugs should not contain characters like &, (, ), /
+            assert "&" not in filename, f"Filename {filename} contains '&'"
+            assert "(" not in filename, f"Filename {filename} contains '('"
+            assert ")" not in filename, f"Filename {filename} contains ')'"
+
+    with specleft.step("And existing feature files are not overwritten"):
+        # The pre-existing file should retain its original content
+        auth_file = Path("features/feature-user-authentication-login.md")
+        current_content = auth_file.read_text()
+        assert current_content == existing_content, (
+            "Existing feature file was overwritten.\n"
+            f"Expected: {existing_content!r}\n"
+            f"Got: {current_content!r}"
+        )
+
+        # Output should indicate the file was skipped
+        assert (
+            "Skipped" in result.output or "skipped" in result.output.lower()
+        ), "Expected indication that existing file was skipped"
 
 
 @specleft(
     feature_id="feature-1-planning-mode",
     scenario_id="handle-missing-prd-gracefully",
 )
-def test_handle_missing_prd_gracefully() -> None:
+def test_handle_missing_prd_gracefully(acceptance_workspace) -> None:
     """Handle missing PRD gracefully
 
     Priority: medium
@@ -224,36 +216,42 @@ def test_handle_missing_prd_gracefully() -> None:
     Verifies that when no PRD file exists, a clear warning is emitted
     and no feature files are created.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given no PRD file exists in the repository"):
-            # Ensure no prd.md exists in the isolated filesystem
-            assert not Path("prd.md").exists(), "prd.md should not exist"
-            assert not Path("docs/prd.md").exists(), "docs/prd.md should not exist"
+    with specleft.step("Given no PRD file exists in the repository"):
+        # Remove the features/ directory created by the fixture
+        # (this test verifies features/ is NOT created when PRD is missing)
+        import shutil
 
-        with specleft.step("When specleft plan is executed"):
-            result = runner.invoke(cli, ["plan"])
+        if Path("features").exists():
+            shutil.rmtree("features")
 
-        with specleft.step("Then a clear warning is emitted"):
-            # Command should complete (exit 0) but with warning
-            assert (
-                result.exit_code == 0
-            ), f"Command should succeed with warning, got exit code {result.exit_code}"
+        # Ensure no prd.md exists in the isolated filesystem
+        assert not Path("prd.md").exists(), "prd.md should not exist"
+        assert not Path("docs/prd.md").exists(), "docs/prd.md should not exist"
 
-            # Should contain clear warning about missing PRD
-            output_lower = result.output.lower()
-            assert "prd" in output_lower and (
-                "not found" in output_lower or "warning" in output_lower
-            ), f"Expected warning about missing PRD in output:\n{result.output}"
+    with specleft.step("When specleft plan is executed"):
+        result = runner.invoke(cli, ["plan"])
 
-            # Should suggest expected locations
-            assert (
-                "expected" in output_lower or "location" in output_lower
-            ), f"Expected suggestion of PRD locations in output:\n{result.output}"
+    with specleft.step("Then a clear warning is emitted"):
+        # Command should complete (exit 0) but with warning
+        assert (
+            result.exit_code == 0
+        ), f"Command should succeed with warning, got exit code {result.exit_code}"
 
-        with specleft.step("And no feature files are created"):
-            # features/ directory should not be created
-            assert not Path(
-                "features"
-            ).exists(), "features/ directory should not be created when PRD is missing"
+        # Should contain clear warning about missing PRD
+        output_lower = result.output.lower()
+        assert "prd" in output_lower and (
+            "not found" in output_lower or "warning" in output_lower
+        ), f"Expected warning about missing PRD in output:\n{result.output}"
+
+        # Should suggest expected locations
+        assert (
+            "expected" in output_lower or "location" in output_lower
+        ), f"Expected suggestion of PRD locations in output:\n{result.output}"
+
+    with specleft.step("And no feature files are created"):
+        # features/ directory should not be created
+        assert not Path(
+            "features"
+        ).exists(), "features/ directory should not be created when PRD is missing"

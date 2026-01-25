@@ -32,7 +32,7 @@ from specleft.cli.main import cli
     feature_id="feature-7-autonomous-agent-test-execution",
     scenario_id="identify-the-next-required-scenario-to-implement",
 )
-def test_identify_the_next_required_scenario_to_implement():
+def test_identify_the_next_required_scenario_to_implement(acceptance_workspace):
     """Identify the next required scenario to implement
 
     Priority: critical (per PRD)
@@ -40,12 +40,10 @@ def test_identify_the_next_required_scenario_to_implement():
     Verifies that `specleft next --format json` deterministically identifies
     unimplemented scenarios with all required metadata.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given feature scenarios exist under features/"):
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given feature scenarios exist under features/"):
+        feature_content = """\
 # Feature: API Gateway
 priority: high
 
@@ -72,13 +70,13 @@ priority: low
 - When processing completes
 - Then metrics are logged
 """
-            Path("features/feature-api-gateway.md").write_text(feature_content)
+        Path("features/feature-api-gateway.md").write_text(feature_content)
 
-        with specleft.step("And some scenarios are unimplemented"):
-            # Create tests directory with only one scenario implemented
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
-            Path("tests/test_api_gateway.py").write_text("""\
+    with specleft.step("And some scenarios are unimplemented"):
+        # Create tests directory with only one scenario implemented
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
+        Path("tests/test_api_gateway.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-api-gateway", scenario_id="log-request-metrics")
@@ -87,81 +85,79 @@ def test_log_request_metrics():
     pass
 """)
 
-        with specleft.step("When specleft next --format json is executed"):
-            result = runner.invoke(
-                cli,
-                ["next", "--format", "json"],
-            )
+    with specleft.step("When specleft next --format json is executed"):
+        result = runner.invoke(
+            cli,
+            ["next", "--format", "json"],
+        )
 
-            assert result.exit_code == 0, (
-                f"Expected exit code 0 but got {result.exit_code}. "
-                f"Output: {result.output}"
-            )
+        assert result.exit_code == 0, (
+            f"Expected exit code 0 but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            payload = json.loads(result.output)
+        payload = json.loads(result.output)
 
-        with specleft.step(
-            "Then the next unimplemented scenario is identified deterministically"
-        ):
-            # Should have unimplemented scenarios
-            assert (
-                payload["total_unimplemented"] >= 1
-            ), f"Expected at least 1 unimplemented scenario. Got: {payload}"
+    with specleft.step(
+        "Then the next unimplemented scenario is identified deterministically"
+    ):
+        # Should have unimplemented scenarios
+        assert (
+            payload["total_unimplemented"] >= 1
+        ), f"Expected at least 1 unimplemented scenario. Got: {payload}"
 
-            # Tests should be present
-            assert (
-                "tests" in payload
-            ), f"Expected 'tests' key in payload. Got: {payload}"
-            assert (
-                len(payload["tests"]) >= 1
-            ), f"Expected at least 1 test in output. Got: {payload}"
+        # Tests should be present
+        assert "tests" in payload, f"Expected 'tests' key in payload. Got: {payload}"
+        assert (
+            len(payload["tests"]) >= 1
+        ), f"Expected at least 1 test in output. Got: {payload}"
 
-            # First test should be the critical one (deterministic ordering by priority)
-            first_test = payload["tests"][0]
-            assert first_test["priority"] == "critical", (
-                f"Expected first test to be critical priority (deterministic). "
-                f"Got: {first_test['priority']}"
-            )
-            assert first_test["scenario_id"] == "authenticate-request", (
-                f"Expected 'authenticate-request' as first scenario. "
-                f"Got: {first_test['scenario_id']}"
-            )
+        # First test should be the critical one (deterministic ordering by priority)
+        first_test = payload["tests"][0]
+        assert first_test["priority"] == "critical", (
+            f"Expected first test to be critical priority (deterministic). "
+            f"Got: {first_test['priority']}"
+        )
+        assert first_test["scenario_id"] == "authenticate-request", (
+            f"Expected 'authenticate-request' as first scenario. "
+            f"Got: {first_test['scenario_id']}"
+        )
 
-        with specleft.step(
-            "And the output includes: 'feature_id', 'scenario_id', 'priority', 'current_status'"
-        ):
-            first_test = payload["tests"][0]
+    with specleft.step(
+        "And the output includes: 'feature_id', 'scenario_id', 'priority', 'current_status'"
+    ):
+        first_test = payload["tests"][0]
 
-            # Verify required fields are present
-            assert (
-                "feature_id" in first_test
-            ), f"Expected 'feature_id' in output. Got: {first_test}"
-            assert first_test["feature_id"] == "feature-api-gateway"
+        # Verify required fields are present
+        assert (
+            "feature_id" in first_test
+        ), f"Expected 'feature_id' in output. Got: {first_test}"
+        assert first_test["feature_id"] == "feature-api-gateway"
 
-            assert (
-                "scenario_id" in first_test
-            ), f"Expected 'scenario_id' in output. Got: {first_test}"
-            assert first_test["scenario_id"] == "authenticate-request"
+        assert (
+            "scenario_id" in first_test
+        ), f"Expected 'scenario_id' in output. Got: {first_test}"
+        assert first_test["scenario_id"] == "authenticate-request"
 
-            assert (
-                "priority" in first_test
-            ), f"Expected 'priority' in output. Got: {first_test}"
-            assert first_test["priority"] == "critical"
+        assert (
+            "priority" in first_test
+        ), f"Expected 'priority' in output. Got: {first_test}"
+        assert first_test["priority"] == "critical"
 
-            # Note: The `next` command shows unimplemented scenarios, so
-            # "current_status" is implicitly "skipped/unimplemented".
-            # The command outputs test_file and test_function which indicate
-            # the expected test location (status is derived from context).
-            assert (
-                "test_file" in first_test or "test_function" in first_test
-            ), f"Expected test location info in output. Got: {first_test}"
+        # Note: The `next` command shows unimplemented scenarios, so
+        # "current_status" is implicitly "skipped/unimplemented".
+        # The command outputs test_file and test_function which indicate
+        # the expected test location (status is derived from context).
+        assert (
+            "test_file" in first_test or "test_function" in first_test
+        ), f"Expected test location info in output. Got: {first_test}"
 
 
 @specleft(
     feature_id="feature-7-autonomous-agent-test-execution",
     scenario_id="generate-test-skeleton-for-a-scenario",
 )
-def test_generate_test_skeleton_for_a_scenario():
+def test_generate_test_skeleton_for_a_scenario(acceptance_workspace):
     """Generate test skeleton for a scenario
 
     Priority: critical (per PRD)
@@ -169,12 +165,10 @@ def test_generate_test_skeleton_for_a_scenario():
     Verifies that `specleft test skeleton` generates test stubs with
     Given/When/Then placeholders and no application logic.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given an unimplemented scenario exists"):
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given an unimplemented scenario exists"):
+        feature_content = """\
 # Feature: Data Export
 priority: high
 
@@ -194,97 +188,95 @@ priority: high
 - When JSON export is requested
 - Then a valid JSON file is generated
 """
-            Path("features/feature-data-export.md").write_text(feature_content)
+        Path("features/feature-data-export.md").write_text(feature_content)
 
-            # Create empty tests directory (no implementations)
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
+        # Create empty tests directory (no implementations)
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
 
-            # Create tmp output directory
-            Path("tmp").mkdir()
+        # Create tmp output directory
+        Path("tmp").mkdir()
 
-        with specleft.step("When specleft test skeleton -o ./tmp/ is executed"):
-            # Use --force to avoid prompts with JSON format
-            result = runner.invoke(
-                cli,
-                ["test", "skeleton", "-o", "./tmp/", "--format", "json", "--force"],
-            )
+    with specleft.step("When specleft test skeleton -o ./tmp/ is executed"):
+        # Use --force to avoid prompts with JSON format
+        result = runner.invoke(
+            cli,
+            ["test", "skeleton", "-o", "./tmp/", "--format", "json", "--force"],
+        )
 
-            assert result.exit_code == 0, (
-                f"Expected exit code 0 but got {result.exit_code}. "
-                f"Output: {result.output}"
-            )
+        assert result.exit_code == 0, (
+            f"Expected exit code 0 but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            payload = json.loads(result.output)
+        payload = json.loads(result.output)
 
-        with specleft.step("Then a test stub is generated in to ./tmp directory"):
-            # Check JSON output indicates files would be created
-            assert (
-                "would_create" in payload
-            ), f"Expected 'would_create' in output. Got: {payload}"
-            assert (
-                len(payload["would_create"]) >= 1
-            ), f"Expected at least 1 skeleton to be created. Got: {payload}"
+    with specleft.step("Then a test stub is generated in to ./tmp directory"):
+        # Check JSON output indicates files would be created
+        assert (
+            "would_create" in payload
+        ), f"Expected 'would_create' in output. Got: {payload}"
+        assert (
+            len(payload["would_create"]) >= 1
+        ), f"Expected at least 1 skeleton to be created. Got: {payload}"
 
-            # Verify output path is in tmp directory
-            first_skeleton = payload["would_create"][0]
-            assert (
-                "tmp" in first_skeleton["test_file"]
-            ), f"Expected test file in tmp directory. Got: {first_skeleton['test_file']}"
+        # Verify output path is in tmp directory
+        first_skeleton = payload["would_create"][0]
+        assert (
+            "tmp" in first_skeleton["test_file"]
+        ), f"Expected test file in tmp directory. Got: {first_skeleton['test_file']}"
 
-            # Verify actual file was created (dry_run should be False by default)
-            # Check for the generated test file
-            generated_files = list(Path("tmp").glob("**/*.py"))
-            assert (
-                len(generated_files) >= 1
-            ), f"Expected at least 1 generated test file. Found: {generated_files}"
+        # Verify actual file was created (dry_run should be False by default)
+        # Check for the generated test file
+        generated_files = list(Path("tmp").glob("**/*.py"))
+        assert (
+            len(generated_files) >= 1
+        ), f"Expected at least 1 generated test file. Found: {generated_files}"
 
-        with specleft.step(
-            "And the test contains placeholders for Given / When / Then"
-        ):
-            # Read the generated file content
-            generated_file = generated_files[0]
-            content = generated_file.read_text()
+    with specleft.step("And the test contains placeholders for Given / When / Then"):
+        # Read the generated file content
+        generated_file = generated_files[0]
+        content = generated_file.read_text()
 
-            # Should contain step placeholders
-            assert (
-                "specleft.step" in content
-            ), f"Expected 'specleft.step' in generated content. Got: {content[:500]}"
+        # Should contain step placeholders
+        assert (
+            "specleft.step" in content
+        ), f"Expected 'specleft.step' in generated content. Got: {content[:500]}"
 
-            # Should contain Given/When/Then step descriptions
-            assert (
-                "Given" in content
-            ), f"Expected 'Given' step in generated content. Got: {content[:500]}"
-            assert (
-                "When" in content
-            ), f"Expected 'When' step in generated content. Got: {content[:500]}"
-            assert (
-                "Then" in content
-            ), f"Expected 'Then' step in generated content. Got: {content[:500]}"
+        # Should contain Given/When/Then step descriptions
+        assert (
+            "Given" in content
+        ), f"Expected 'Given' step in generated content. Got: {content[:500]}"
+        assert (
+            "When" in content
+        ), f"Expected 'When' step in generated content. Got: {content[:500]}"
+        assert (
+            "Then" in content
+        ), f"Expected 'Then' step in generated content. Got: {content[:500]}"
 
-        with specleft.step("And no application logic is implemented automatically"):
-            # Read content again
-            content = generated_file.read_text()
+    with specleft.step("And no application logic is implemented automatically"):
+        # Read content again
+        content = generated_file.read_text()
 
-            # Should contain TODO placeholders or pass statements
-            assert "pass" in content or "TODO" in content, (
-                f"Expected placeholder (pass/TODO) in generated content. "
-                f"Got: {content[:500]}"
-            )
+        # Should contain TODO placeholders or pass statements
+        assert "pass" in content or "TODO" in content, (
+            f"Expected placeholder (pass/TODO) in generated content. "
+            f"Got: {content[:500]}"
+        )
 
-            # Should NOT contain actual implementation code
-            # (no assert statements beyond boilerplate, no complex logic)
-            # The skeleton should have skip=True indicating not implemented
-            assert (
-                "skip=True" in content or "skip = True" in content
-            ), f"Expected skeleton to be marked as skipped. Got: {content[:500]}"
+        # Should NOT contain actual implementation code
+        # (no assert statements beyond boilerplate, no complex logic)
+        # The skeleton should have skip=True indicating not implemented
+        assert (
+            "skip=True" in content or "skip = True" in content
+        ), f"Expected skeleton to be marked as skipped. Got: {content[:500]}"
 
 
 @specleft(
     feature_id="feature-7-autonomous-agent-test-execution",
     scenario_id="agent-implements-behaviour-to-satisfy-the-test",
 )
-def test_agent_implements_behaviour_to_satisfy_the_test():
+def test_agent_implements_behaviour_to_satisfy_the_test(acceptance_workspace):
     """Agent implements behaviour to satisfy the test
 
     Priority: high (per PRD)
@@ -295,13 +287,11 @@ def test_agent_implements_behaviour_to_satisfy_the_test():
     Note: SpecLeft does not implement code; this scenario validates
     compatibility with agent-driven coding.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a generated test skeleton exists"):
-            # Create a feature
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given a generated test skeleton exists"):
+        # Create a feature
+        feature_content = """\
 # Feature: Cache Service
 priority: high
 
@@ -321,16 +311,16 @@ priority: high
 - When cache lookup is performed
 - Then data is fetched from source
 """
-            Path("features/feature-cache-service.md").write_text(feature_content)
+        Path("features/feature-cache-service.md").write_text(feature_content)
 
-            # Create a "skeleton" test file (with skip=True initially)
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
+        # Create a "skeleton" test file (with skip=True initially)
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
 
-        with specleft.step("When an agent implements application code"):
-            # Simulate agent implementing the test by creating a proper test
-            # (removing skip=True and adding actual test logic)
-            Path("tests/test_cache_service.py").write_text("""\
+    with specleft.step("When an agent implements application code"):
+        # Simulate agent implementing the test by creating a proper test
+        # (removing skip=True and adding actual test logic)
+        Path("tests/test_cache_service.py").write_text("""\
 from specleft import specleft
 
 @specleft(
@@ -349,68 +339,66 @@ def test_cache_hit_returns_data():
         assert result == "value"
 """)
 
-        with specleft.step("And the test passes locally"):
-            # Run pytest on the implemented test
-            import subprocess
+    with specleft.step("And the test passes locally"):
+        # Run pytest on the implemented test
+        import subprocess
 
-            proc = subprocess.run(
-                ["pytest", "tests/test_cache_service.py", "-v", "--tb=short"],
-                capture_output=True,
-                text=True,
-            )
-            assert (
-                proc.returncode == 0
-            ), f"Expected test to pass. stdout: {proc.stdout}, stderr: {proc.stderr}"
+        proc = subprocess.run(
+            ["pytest", "tests/test_cache_service.py", "-v", "--tb=short"],
+            capture_output=True,
+            text=True,
+        )
+        assert (
+            proc.returncode == 0
+        ), f"Expected test to pass. stdout: {proc.stdout}, stderr: {proc.stderr}"
 
-        with specleft.step(
-            "Then specleft status --implemented --format json the scenario status as implemented"
-        ):
-            result = runner.invoke(
-                cli,
-                ["status", "--implemented", "--format", "json"],
-            )
+    with specleft.step(
+        "Then specleft status --implemented --format json the scenario status as implemented"
+    ):
+        result = runner.invoke(
+            cli,
+            ["status", "--implemented", "--format", "json"],
+        )
 
-            assert result.exit_code == 0, (
-                f"Expected exit code 0 but got {result.exit_code}. "
-                f"Output: {result.output}"
-            )
+        assert result.exit_code == 0, (
+            f"Expected exit code 0 but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            payload = json.loads(result.output)
+        payload = json.loads(result.output)
 
-            # Verify the implemented scenario appears in output
-            assert (
-                "features" in payload
-            ), f"Expected 'features' in payload. Got: {payload}"
+        # Verify the implemented scenario appears in output
+        assert "features" in payload, f"Expected 'features' in payload. Got: {payload}"
 
-            # Find our feature
-            feature = next(
-                (
-                    f
-                    for f in payload["features"]
-                    if f["feature_id"] == "feature-cache-service"
-                ),
-                None,
-            )
-            assert (
-                feature is not None
-            ), f"Expected 'feature-cache-service' in output. Got: {payload['features']}"
+        # Find our feature
+        feature = next(
+            (
+                f
+                for f in payload["features"]
+                if f["feature_id"] == "feature-cache-service"
+            ),
+            None,
+        )
+        assert (
+            feature is not None
+        ), f"Expected 'feature-cache-service' in output. Got: {payload['features']}"
 
-            # Find the implemented scenario
-            # Note: With --implemented filter, scenarios are directly under feature
-            scenarios = feature.get("scenarios", [])
+        # Find the implemented scenario
+        # Note: With --implemented filter, scenarios are directly under feature
+        scenarios = feature.get("scenarios", [])
 
-            implemented_ids = [s["id"] for s in scenarios]
-            assert "cache-hit-returns-data" in implemented_ids, (
-                f"Expected 'cache-hit-returns-data' in implemented scenarios. "
-                f"Got: {implemented_ids}"
-            )
+        implemented_ids = [s["id"] for s in scenarios]
+        assert "cache-hit-returns-data" in implemented_ids, (
+            f"Expected 'cache-hit-returns-data' in implemented scenarios. "
+            f"Got: {implemented_ids}"
+        )
 
 
 @specleft(
     feature_id="feature-7-autonomous-agent-test-execution",
     scenario_id="coverage-reflects-scenario-implementation",
 )
-def test_coverage_reflects_scenario_implementation():
+def test_coverage_reflects_scenario_implementation(acceptance_workspace):
     """Coverage reflects scenario implementation
 
     Priority: high (per PRD)
@@ -418,13 +406,11 @@ def test_coverage_reflects_scenario_implementation():
     Verifies that `specleft coverage --format json` reports coverage
     per feature and clearly distinguishes implemented vs unimplemented.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given some scenarios are implemented and others are not"):
-            # Create features with multiple scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given some scenarios are implemented and others are not"):
+        # Create features with multiple scenarios
+        feature_content = """\
 # Feature: User Service
 priority: high
 
@@ -451,12 +437,12 @@ priority: medium
 - When delete is called
 - Then user is removed
 """
-            Path("features/feature-user-service.md").write_text(feature_content)
+        Path("features/feature-user-service.md").write_text(feature_content)
 
-            # Create tests with partial implementation (1 of 3 implemented)
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
-            Path("tests/test_user_service.py").write_text("""\
+        # Create tests with partial implementation (1 of 3 implemented)
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
+        Path("tests/test_user_service.py").write_text("""\
 from specleft import specleft
 
 @specleft(
@@ -487,98 +473,90 @@ def test_update_user():
 # Note: delete-user has no test at all (also unimplemented)
 """)
 
-        with specleft.step("When specleft coverage --format json is executed"):
-            result = runner.invoke(
-                cli,
-                ["coverage", "--format", "json"],
-            )
+    with specleft.step("When specleft coverage --format json is executed"):
+        result = runner.invoke(
+            cli,
+            ["coverage", "--format", "json"],
+        )
 
-            assert result.exit_code == 0, (
-                f"Expected exit code 0 but got {result.exit_code}. "
-                f"Output: {result.output}"
-            )
+        assert result.exit_code == 0, (
+            f"Expected exit code 0 but got {result.exit_code}. "
+            f"Output: {result.output}"
+        )
 
-            payload = json.loads(result.output)
+        payload = json.loads(result.output)
 
-        with specleft.step("Then coverage is reported per feature and per scenario"):
-            # Verify coverage structure
-            assert (
-                "coverage" in payload
-            ), f"Expected 'coverage' in payload. Got: {payload}"
+    with specleft.step("Then coverage is reported per feature and per scenario"):
+        # Verify coverage structure
+        assert "coverage" in payload, f"Expected 'coverage' in payload. Got: {payload}"
 
-            coverage = payload["coverage"]
+        coverage = payload["coverage"]
 
-            # Verify overall coverage
-            assert (
-                "overall" in coverage
-            ), f"Expected 'overall' in coverage. Got: {coverage}"
-            overall = coverage["overall"]
-            assert (
-                "total_scenarios" in overall
-            ), f"Expected 'total_scenarios' in overall. Got: {overall}"
-            assert (
-                "implemented" in overall
-            ), f"Expected 'implemented' in overall. Got: {overall}"
-            assert (
-                "skipped" in overall
-            ), f"Expected 'skipped' in overall. Got: {overall}"
+        # Verify overall coverage
+        assert "overall" in coverage, f"Expected 'overall' in coverage. Got: {coverage}"
+        overall = coverage["overall"]
+        assert (
+            "total_scenarios" in overall
+        ), f"Expected 'total_scenarios' in overall. Got: {overall}"
+        assert (
+            "implemented" in overall
+        ), f"Expected 'implemented' in overall. Got: {overall}"
+        assert "skipped" in overall, f"Expected 'skipped' in overall. Got: {overall}"
 
-            # Verify by_feature breakdown
-            assert (
-                "by_feature" in coverage
-            ), f"Expected 'by_feature' in coverage. Got: {coverage}"
-            by_feature = coverage["by_feature"]
-            assert (
-                len(by_feature) >= 1
-            ), f"Expected at least 1 feature in coverage. Got: {by_feature}"
+        # Verify by_feature breakdown
+        assert (
+            "by_feature" in coverage
+        ), f"Expected 'by_feature' in coverage. Got: {coverage}"
+        by_feature = coverage["by_feature"]
+        assert (
+            len(by_feature) >= 1
+        ), f"Expected at least 1 feature in coverage. Got: {by_feature}"
 
-            # Find our feature
-            feature_coverage = next(
-                (f for f in by_feature if f["feature_id"] == "feature-user-service"),
-                None,
-            )
-            assert (
-                feature_coverage is not None
-            ), f"Expected 'feature-user-service' in by_feature. Got: {by_feature}"
+        # Find our feature
+        feature_coverage = next(
+            (f for f in by_feature if f["feature_id"] == "feature-user-service"),
+            None,
+        )
+        assert (
+            feature_coverage is not None
+        ), f"Expected 'feature-user-service' in by_feature. Got: {by_feature}"
 
-            # Verify feature has total, implemented, and percent
-            assert (
-                "total" in feature_coverage
-            ), f"Expected 'total' in feature coverage. Got: {feature_coverage}"
-            assert (
-                "implemented" in feature_coverage
-            ), f"Expected 'implemented' in feature coverage. Got: {feature_coverage}"
-            assert (
-                "percent" in feature_coverage
-            ), f"Expected 'percent' in feature coverage. Got: {feature_coverage}"
+        # Verify feature has total, implemented, and percent
+        assert (
+            "total" in feature_coverage
+        ), f"Expected 'total' in feature coverage. Got: {feature_coverage}"
+        assert (
+            "implemented" in feature_coverage
+        ), f"Expected 'implemented' in feature coverage. Got: {feature_coverage}"
+        assert (
+            "percent" in feature_coverage
+        ), f"Expected 'percent' in feature coverage. Got: {feature_coverage}"
 
-        with specleft.step(
-            "And implemented vs unimplemented scenarios are clearly distinguished"
-        ):
-            # Overall should show clear counts
-            overall = payload["coverage"]["overall"]
+    with specleft.step(
+        "And implemented vs unimplemented scenarios are clearly distinguished"
+    ):
+        # Overall should show clear counts
+        overall = payload["coverage"]["overall"]
 
-            # We have 3 scenarios, 1 implemented
-            assert (
-                overall["total_scenarios"] == 3
-            ), f"Expected 3 total scenarios. Got: {overall['total_scenarios']}"
-            assert (
-                overall["implemented"] == 1
-            ), f"Expected 1 implemented. Got: {overall['implemented']}"
-            assert (
-                overall["skipped"] == 2
-            ), f"Expected 2 skipped. Got: {overall['skipped']}"
+        # We have 3 scenarios, 1 implemented
+        assert (
+            overall["total_scenarios"] == 3
+        ), f"Expected 3 total scenarios. Got: {overall['total_scenarios']}"
+        assert (
+            overall["implemented"] == 1
+        ), f"Expected 1 implemented. Got: {overall['implemented']}"
+        assert overall["skipped"] == 2, f"Expected 2 skipped. Got: {overall['skipped']}"
 
-            # Percent should reflect 1/3 = ~33%
-            percent = overall["percent"]
-            assert percent is not None, "Expected percent to be calculated"
-            assert 30 <= percent <= 35, f"Expected ~33% coverage (1/3). Got: {percent}%"
+        # Percent should reflect 1/3 = ~33%
+        percent = overall["percent"]
+        assert percent is not None, "Expected percent to be calculated"
+        assert 30 <= percent <= 35, f"Expected ~33% coverage (1/3). Got: {percent}%"
 
-            # Feature coverage should also show the breakdown
-            feature_coverage = next(
-                f
-                for f in payload["coverage"]["by_feature"]
-                if f["feature_id"] == "feature-user-service"
-            )
-            assert feature_coverage["total"] == 3
-            assert feature_coverage["implemented"] == 1
+        # Feature coverage should also show the breakdown
+        feature_coverage = next(
+            f
+            for f in payload["coverage"]["by_feature"]
+            if f["feature_id"] == "feature-user-service"
+        )
+        assert feature_coverage["total"] == 3
+        assert feature_coverage["implemented"] == 1

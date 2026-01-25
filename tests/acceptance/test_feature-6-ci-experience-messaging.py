@@ -73,7 +73,7 @@ def write_policy_file(
     feature_id="feature-6-ci-experience-messaging",
     scenario_id="ci-failure-explains-intent-mismatch",
 )
-def test_ci_failure_explains_intent_mismatch():
+def test_ci_failure_explains_intent_mismatch(acceptance_workspace):
     """CI failure explains intent mismatch
 
     Priority: critical (per PRD)
@@ -84,13 +84,11 @@ def test_ci_failure_explains_intent_mismatch():
     - Provides clear remediation options (documentation links)
     - Contains NO marketing or pricing language
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given enforcement fails in CI"):
-            # Create a feature with critical scenario that will be unimplemented
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given enforcement fails in CI"):
+        # Create a feature with critical scenario that will be unimplemented
+        feature_content = """\
 # Feature: Order Processing
 priority: high
 
@@ -110,12 +108,12 @@ priority: low
 - When archival runs
 - Then orders are archived
 """
-            Path("features/feature-order-processing.md").write_text(feature_content)
+        Path("features/feature-order-processing.md").write_text(feature_content)
 
-            # Create tests directory with only low-priority test implemented
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
-            Path("tests/test_orders.py").write_text("""\
+        # Create tests directory with only low-priority test implemented
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
+        Path("tests/test_orders.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-order-processing", scenario_id="archive-old-orders")
@@ -124,75 +122,74 @@ def test_archive_old_orders():
     pass
 """)
 
-            # Create a signed policy requiring critical scenarios
-            policy_data = create_enforce_policy_data(
-                licensed_to="test-owner/test-repo",
-                coverage_threshold=1,
-                coverage_fail_below=False,
-                priorities={
-                    "critical": {"must_be_implemented": True},
-                },
+        # Create a signed policy requiring critical scenarios
+        policy_data = create_enforce_policy_data(
+            licensed_to="test-owner/test-repo",
+            coverage_threshold=1,
+            coverage_fail_below=False,
+            priorities={
+                "critical": {"must_be_implemented": True},
+            },
+        )
+        write_policy_file(Path("."), policy_data)
+
+    with specleft.step("When output is printed"):
+        with patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ):
+            result = runner.invoke(
+                cli,
+                ["enforce", ".specleft/licenses/policy.yml"],
             )
-            write_policy_file(Path("."), policy_data)
 
-        with specleft.step("When output is printed"):
-            with patch(
-                "specleft.commands.enforce.detect_repo_identity",
-                return_value=RepoIdentity(owner="test-owner", name="test-repo"),
-            ):
-                result = runner.invoke(
-                    cli,
-                    ["enforce", ".specleft/licenses/policy.yml"],
-                )
+        output = result.output
 
-            output = result.output
+    with specleft.step("Then the message explains:"):
+        # Check for declared intent - the output should show what priority was required
+        # and which scenarios were violations
+        assert (
+            "Priority violations" in output or "priority" in output.lower()
+        ), f"Expected output to mention priority requirements. Got: {output}"
 
-        with specleft.step("Then the message explains:"):
-            # Check for declared intent - the output should show what priority was required
-            # and which scenarios were violations
-            assert (
-                "Priority violations" in output or "priority" in output.lower()
-            ), f"Expected output to mention priority requirements. Got: {output}"
+        # Check that specific scenario is identified as NOT IMPLEMENTED
+        assert (
+            "NOT IMPLEMENTED" in output or "not implemented" in output.lower()
+        ), f"Expected output to show implementation state. Got: {output}"
 
-            # Check that specific scenario is identified as NOT IMPLEMENTED
-            assert (
-                "NOT IMPLEMENTED" in output or "not implemented" in output.lower()
-            ), f"Expected output to show implementation state. Got: {output}"
+        # Check that the feature/scenario is identified
+        assert (
+            "feature-order-processing" in output or "process-critical-order" in output
+        ), f"Expected output to identify the violated scenario. Got: {output}"
 
-            # Check that the feature/scenario is identified
-            assert (
-                "feature-order-processing" in output
-                or "process-critical-order" in output
-            ), f"Expected output to identify the violated scenario. Got: {output}"
+    with specleft.step("And no marketing or pricing language is included"):
+        output_lower = output.lower()
 
-        with specleft.step("And no marketing or pricing language is included"):
-            output_lower = output.lower()
+        # Should NOT contain marketing/pricing terms in the violation output
+        # Note: pricing links may appear in evaluation warnings, but not in
+        # the core violation message
+        marketing_terms = [
+            "purchase",
+            "buy now",
+            "subscribe",
+            "premium",
+            "upgrade today",
+            "limited time",
+            "discount",
+            "special offer",
+        ]
 
-            # Should NOT contain marketing/pricing terms in the violation output
-            # Note: pricing links may appear in evaluation warnings, but not in
-            # the core violation message
-            marketing_terms = [
-                "purchase",
-                "buy now",
-                "subscribe",
-                "premium",
-                "upgrade today",
-                "limited time",
-                "discount",
-                "special offer",
-            ]
-
-            for term in marketing_terms:
-                assert term not in output_lower, (
-                    f"Found marketing language '{term}' in output. "
-                    f"CI messages should be professional and actionable. Got: {output}"
-                )
-
-            # Verify the exit code indicates policy violation (not license issue)
-            assert result.exit_code == 1, (
-                f"Expected exit code 1 (policy violation) but got {result.exit_code}. "
-                f"Output: {output}"
+        for term in marketing_terms:
+            assert term not in output_lower, (
+                f"Found marketing language '{term}' in output. "
+                f"CI messages should be professional and actionable. Got: {output}"
             )
+
+        # Verify the exit code indicates policy violation (not license issue)
+        assert result.exit_code == 1, (
+            f"Expected exit code 1 (policy violation) but got {result.exit_code}. "
+            f"Output: {output}"
+        )
 
 
 @specleft(
@@ -207,7 +204,7 @@ def test_archive_old_orders():
     ],
 )
 def test_documentation_and_support_links_on_ci_failure(
-    package: str, policy_filename: str, policy_creator
+    acceptance_workspace, package: str, policy_filename: str, policy_creator
 ):
     """Documentation and support links on CI failure
 
@@ -216,15 +213,13 @@ def test_documentation_and_support_links_on_ci_failure(
     Verifies that when enforcement fails with policy violations,
     the output includes actionable documentation and support links.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step(
-            f"Given enforcement fails in CI with {package} policy violation"
-        ):
-            # Create a feature with critical scenario that will be unimplemented
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step(
+        f"Given enforcement fails in CI with {package} policy violation"
+    ):
+        # Create a feature with critical scenario that will be unimplemented
+        feature_content = """\
 # Feature: Notification Service
 priority: high
 
@@ -244,12 +239,12 @@ priority: medium
 - When history is queried
 - Then records are returned
 """
-            Path("features/feature-notification-service.md").write_text(feature_content)
+        Path("features/feature-notification-service.md").write_text(feature_content)
 
-            # Create tests - leave critical scenario unimplemented
-            Path("tests").mkdir()
-            Path("tests/__init__.py").write_text("")
-            Path("tests/test_notifications.py").write_text("""\
+        # Create tests - leave critical scenario unimplemented
+        Path("tests").mkdir()
+        Path("tests/__init__.py").write_text("")
+        Path("tests/test_notifications.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-notification-service", scenario_id="log-notification-history")
@@ -258,64 +253,64 @@ def test_log_notification_history():
     pass
 """)
 
-            # Create the appropriate policy type
-            policy_data = policy_creator(
-                licensed_to="test-owner/test-repo",
-                coverage_threshold=1,
-                coverage_fail_below=False,
-                priorities={
-                    "critical": {"must_be_implemented": True},
-                },
-            )
-            write_policy_file(Path("."), policy_data, filename=policy_filename)
+        # Create the appropriate policy type
+        policy_data = policy_creator(
+            licensed_to="test-owner/test-repo",
+            coverage_threshold=1,
+            coverage_fail_below=False,
+            priorities={
+                "critical": {"must_be_implemented": True},
+            },
+        )
+        write_policy_file(Path("."), policy_data, filename=policy_filename)
 
-        with specleft.step(
-            f"When output is printed from specleft enforce {policy_filename}"
+    with specleft.step(
+        f"When output is printed from specleft enforce {policy_filename}"
+    ):
+        with patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
         ):
-            with patch(
-                "specleft.commands.enforce.detect_repo_identity",
-                return_value=RepoIdentity(owner="test-owner", name="test-repo"),
-            ):
-                result = runner.invoke(
-                    cli,
-                    [
-                        "enforce",
-                        f".specleft/licenses/{policy_filename}",
-                    ],
-                )
-
-            output = result.output
-
-        with specleft.step('Then the message includes "Documentation: <link>"'):
-            assert "Documentation:" in output, (
-                f"Expected 'Documentation:' link in output for {package} policy. "
-                f"Got: {output}"
+            result = runner.invoke(
+                cli,
+                [
+                    "enforce",
+                    f".specleft/licenses/{policy_filename}",
+                ],
             )
 
-            # Verify the documentation link is a valid URL
-            assert (
-                "https://" in output
-            ), f"Expected documentation link to be a valid URL. Got: {output}"
+        output = result.output
 
-        with specleft.step('And the message includes "Support: <link>"'):
-            assert "Support:" in output, (
-                f"Expected 'Support:' link in output for {package} policy. "
-                f"Got: {output}"
-            )
+    with specleft.step('Then the message includes "Documentation: <link>"'):
+        assert "Documentation:" in output, (
+            f"Expected 'Documentation:' link in output for {package} policy. "
+            f"Got: {output}"
+        )
 
-        with specleft.step("And both links are actionable and relevant"):
-            # Verify links point to specleft.dev domain (actionable and relevant)
-            assert (
-                "specleft.dev" in output
-            ), f"Expected links to point to specleft.dev. Got: {output}"
+        # Verify the documentation link is a valid URL
+        assert (
+            "https://" in output
+        ), f"Expected documentation link to be a valid URL. Got: {output}"
 
-            # Verify the enforcement failed (so we're testing failure path)
-            assert result.exit_code == 1, (
-                f"Expected exit code 1 (policy violation) but got {result.exit_code}. "
-                f"Output: {output}"
-            )
+    with specleft.step('And the message includes "Support: <link>"'):
+        assert "Support:" in output, (
+            f"Expected 'Support:' link in output for {package} policy. "
+            f"Got: {output}"
+        )
 
-            # Verify that documentation link appears to be for enforcement docs
-            assert (
-                "docs" in output.lower() or "enforce" in output.lower()
-            ), f"Expected documentation to be relevant to enforcement. Got: {output}"
+    with specleft.step("And both links are actionable and relevant"):
+        # Verify links point to specleft.dev domain (actionable and relevant)
+        assert (
+            "specleft.dev" in output
+        ), f"Expected links to point to specleft.dev. Got: {output}"
+
+        # Verify the enforcement failed (so we're testing failure path)
+        assert result.exit_code == 1, (
+            f"Expected exit code 1 (policy violation) but got {result.exit_code}. "
+            f"Output: {output}"
+        )
+
+        # Verify that documentation link appears to be for enforcement docs
+        assert (
+            "docs" in output.lower() or "enforce" in output.lower()
+        ), f"Expected documentation to be relevant to enforcement. Got: {output}"

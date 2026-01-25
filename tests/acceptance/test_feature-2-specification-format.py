@@ -31,7 +31,7 @@ from specleft.cli.main import cli
     feature_id="feature-2-specification-format",
     scenario_id="minimal-valid-feature-file",
 )
-def test_minimal_valid_feature_file() -> None:
+def test_minimal_valid_feature_file(acceptance_workspace) -> None:
     """Minimal valid feature file
 
     Priority: critical
@@ -39,14 +39,12 @@ def test_minimal_valid_feature_file() -> None:
     Verifies that a feature file with only the minimum required elements
     (at least one scenario with a priority) is considered valid by SpecLeft.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a feature file exists under features/"):
-            Path("features").mkdir()
-            # Create a minimal feature file - just a scenario with priority
-            # Using the same format as existing feature files in the repo
-            minimal_feature = """\
+    with specleft.step("Given a feature file exists under features/"):
+        # Create a minimal feature file - just a scenario with priority
+        # Using the same format as existing feature files in the repo
+        minimal_feature = """\
 # Feature: Minimal Feature
 
 ## Scenarios
@@ -58,53 +56,53 @@ priority: high
 - When an action occurs
 - Then an expected result
 """
-            Path("features/minimal-feature.md").write_text(minimal_feature)
+        Path("features/minimal-feature.md").write_text(minimal_feature)
 
-        with specleft.step("When it contains at least one scenario with a priority"):
-            # The feature file above contains exactly one scenario with priority: high
-            result = runner.invoke(cli, ["features", "validate", "--format", "json"])
+    with specleft.step("When it contains at least one scenario with a priority"):
+        # The feature file above contains exactly one scenario with priority: high
+        result = runner.invoke(cli, ["features", "validate", "--format", "json"])
 
-        with specleft.step("Then it is considered valid by SpecLeft"):
-            assert result.exit_code == 0, f"Validation failed: {result.output}"
-            payload = json.loads(result.output)
-            assert payload["valid"] is True, f"Expected valid=True, got: {payload}"
-            assert payload["scenarios"] >= 1, "Expected at least 1 scenario"
+    with specleft.step("Then it is considered valid by SpecLeft"):
+        assert result.exit_code == 0, f"Validation failed: {result.output}"
+        payload = json.loads(result.output)
+        assert payload["valid"] is True, f"Expected valid=True, got: {payload}"
+        assert payload["scenarios"] >= 1, "Expected at least 1 scenario"
 
-        with specleft.step("And missing metadata fields are treated as null"):
-            # List features with JSON to inspect metadata fields
-            list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
-            assert list_result.exit_code == 0, f"List failed: {list_result.output}"
+    with specleft.step("And missing metadata fields are treated as null"):
+        # List features with JSON to inspect metadata fields
+        list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
+        assert list_result.exit_code == 0, f"List failed: {list_result.output}"
 
-            list_payload = json.loads(list_result.output)
-            assert "features" in list_payload, "Expected 'features' key in output"
-            assert len(list_payload["features"]) >= 1, "Expected at least 1 feature"
+        list_payload = json.loads(list_result.output)
+        assert "features" in list_payload, "Expected 'features' key in output"
+        assert len(list_payload["features"]) >= 1, "Expected at least 1 feature"
 
-            feature = list_payload["features"][0]
-            # Optional fields should be null/None when not specified
-            # These include: confidence, assumptions, open_questions, owner, component
-            optional_fields = [
-                "confidence",
-                "assumptions",
-                "open_questions",
-                "owner",
-                "component",
-            ]
-            for field in optional_fields:
-                # Field should exist and be null (not cause KeyError)
-                assert (
-                    field in feature
-                ), f"Optional field '{field}' should be present in output"
-                # Value should be None/null (not an error or missing)
-                assert (
-                    feature[field] is None
-                ), f"Optional field '{field}' should be null when not specified, got: {feature[field]}"
+        feature = list_payload["features"][0]
+        # Optional fields should be null/None when not specified
+        # These include: confidence, assumptions, open_questions, owner, component
+        optional_fields = [
+            "confidence",
+            "assumptions",
+            "open_questions",
+            "owner",
+            "component",
+        ]
+        for field in optional_fields:
+            # Field should exist and be null (not cause KeyError)
+            assert (
+                field in feature
+            ), f"Optional field '{field}' should be present in output"
+            # Value should be None/null (not an error or missing)
+            assert (
+                feature[field] is None
+            ), f"Optional field '{field}' should be null when not specified, got: {feature[field]}"
 
 
 @specleft(
     feature_id="feature-2-specification-format",
     scenario_id="optional-metadata-does-not-block-usage",
 )
-def test_optional_metadata_does_not_block_usage() -> None:
+def test_optional_metadata_does_not_block_usage(acceptance_workspace) -> None:
     """Optional metadata does not block usage
 
     Priority: high
@@ -117,16 +115,13 @@ def test_optional_metadata_does_not_block_usage() -> None:
     Note: YAML frontmatter parsing at the start of files is currently limited.
     This test validates that the system gracefully handles metadata presence/absence.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a feature file includes optional metadata"):
-            Path("features").mkdir()
-
-            # Create a feature file WITH optional metadata
-            # Note: The parser has limited YAML frontmatter support, so we include
-            # metadata but verify the system doesn't error when it's present
-            feature_with_metadata = """\
+    with specleft.step("Given a feature file includes optional metadata"):
+        # Create a feature file WITH optional metadata
+        # Note: The parser has limited YAML frontmatter support, so we include
+        # metadata but verify the system doesn't error when it's present
+        feature_with_metadata = """\
 ---
 confidence: high
 owner: test-team
@@ -146,10 +141,10 @@ priority: critical
 - When they attempt login
 - Then they are authenticated
 """
-            Path("features/feature-with-metadata.md").write_text(feature_with_metadata)
+        Path("features/feature-with-metadata.md").write_text(feature_with_metadata)
 
-            # Create another feature file WITHOUT optional metadata (minimal)
-            feature_without_metadata = """\
+        # Create another feature file WITHOUT optional metadata (minimal)
+        feature_without_metadata = """\
 # Feature: Feature Without Metadata
 
 ## Scenarios
@@ -161,96 +156,94 @@ priority: medium
 - When an operation occurs
 - Then state changes
 """
-            Path("features/feature-without-metadata.md").write_text(
-                feature_without_metadata
-            )
+        Path("features/feature-without-metadata.md").write_text(
+            feature_without_metadata
+        )
 
-        with specleft.step("When SpecLeft parses the file"):
-            # Validate both files - should not error regardless of metadata
-            validate_result = runner.invoke(
-                cli, ["features", "validate", "--format", "json"]
-            )
+    with specleft.step("When SpecLeft parses the file"):
+        # Validate both files - should not error regardless of metadata
+        validate_result = runner.invoke(
+            cli, ["features", "validate", "--format", "json"]
+        )
+        assert (
+            validate_result.exit_code == 0
+        ), f"Validation failed: {validate_result.output}"
+
+        # List features with JSON output
+        list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
+        assert list_result.exit_code == 0, f"List failed: {list_result.output}"
+
+    with specleft.step("Then metadata is included in JSON output"):
+        list_payload = json.loads(list_result.output)
+        features = list_payload["features"]
+
+        # Both features should be parsed successfully
+        assert len(features) == 2, f"Expected 2 features, got {len(features)}"
+
+        # Find the feature with metadata by title
+        feature_with_meta = None
+        for f in features:
+            if "with metadata" in f["title"].lower():
+                feature_with_meta = f
+                break
+
+        assert (
+            feature_with_meta is not None
+        ), f"Could not find feature with metadata. Features: {[f['title'] for f in features]}"
+
+        # Verify the feature was parsed (has required fields)
+        assert "feature_id" in feature_with_meta, "Expected feature_id"
+        assert "title" in feature_with_meta, "Expected title"
+        assert "scenarios" in feature_with_meta, "Expected scenarios"
+        assert len(feature_with_meta["scenarios"]) >= 1, "Expected at least 1 scenario"
+
+        # Metadata fields should exist in output (even if null due to parsing limitations)
+        metadata_fields = [
+            "confidence",
+            "owner",
+            "component",
+            "tags",
+            "assumptions",
+        ]
+        for field in metadata_fields:
             assert (
-                validate_result.exit_code == 0
-            ), f"Validation failed: {validate_result.output}"
+                field in feature_with_meta
+            ), f"Metadata field '{field}' should be present in JSON output"
 
-            # List features with JSON output
-            list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
-            assert list_result.exit_code == 0, f"List failed: {list_result.output}"
+    with specleft.step("And absence of metadata does not cause errors"):
+        # Find the feature WITHOUT metadata
+        feature_without_meta = None
+        for f in features:
+            if "without" in f["title"].lower():
+                feature_without_meta = f
+                break
 
-        with specleft.step("Then metadata is included in JSON output"):
-            list_payload = json.loads(list_result.output)
-            features = list_payload["features"]
+        assert (
+            feature_without_meta is not None
+        ), f"Could not find feature without metadata. Features: {[f['title'] for f in features]}"
 
-            # Both features should be parsed successfully
-            assert len(features) == 2, f"Expected 2 features, got {len(features)}"
+        # Verify it was parsed successfully (has required fields)
+        assert "feature_id" in feature_without_meta, "Expected feature_id"
+        assert "title" in feature_without_meta, "Expected title"
+        assert "scenarios" in feature_without_meta, "Expected scenarios"
+        assert (
+            len(feature_without_meta["scenarios"]) >= 1
+        ), "Expected at least 1 scenario"
 
-            # Find the feature with metadata by title
-            feature_with_meta = None
-            for f in features:
-                if "with metadata" in f["title"].lower():
-                    feature_with_meta = f
-                    break
+        # Optional fields should be null but present (no KeyError)
+        assert (
+            feature_without_meta.get("confidence") is None
+        ), "Expected confidence=null for minimal feature"
+        assert (
+            feature_without_meta.get("owner") is None
+        ), "Expected owner=null for minimal feature"
 
-            assert (
-                feature_with_meta is not None
-            ), f"Could not find feature with metadata. Features: {[f['title'] for f in features]}"
-
-            # Verify the feature was parsed (has required fields)
-            assert "feature_id" in feature_with_meta, "Expected feature_id"
-            assert "title" in feature_with_meta, "Expected title"
-            assert "scenarios" in feature_with_meta, "Expected scenarios"
-            assert (
-                len(feature_with_meta["scenarios"]) >= 1
-            ), "Expected at least 1 scenario"
-
-            # Metadata fields should exist in output (even if null due to parsing limitations)
-            metadata_fields = [
-                "confidence",
-                "owner",
-                "component",
-                "tags",
-                "assumptions",
-            ]
-            for field in metadata_fields:
-                assert (
-                    field in feature_with_meta
-                ), f"Metadata field '{field}' should be present in JSON output"
-
-        with specleft.step("And absence of metadata does not cause errors"):
-            # Find the feature WITHOUT metadata
-            feature_without_meta = None
-            for f in features:
-                if "without" in f["title"].lower():
-                    feature_without_meta = f
-                    break
-
-            assert (
-                feature_without_meta is not None
-            ), f"Could not find feature without metadata. Features: {[f['title'] for f in features]}"
-
-            # Verify it was parsed successfully (has required fields)
-            assert "feature_id" in feature_without_meta, "Expected feature_id"
-            assert "title" in feature_without_meta, "Expected title"
-            assert "scenarios" in feature_without_meta, "Expected scenarios"
-            assert (
-                len(feature_without_meta["scenarios"]) >= 1
-            ), "Expected at least 1 scenario"
-
-            # Optional fields should be null but present (no KeyError)
-            assert (
-                feature_without_meta.get("confidence") is None
-            ), "Expected confidence=null for minimal feature"
-            assert (
-                feature_without_meta.get("owner") is None
-            ), "Expected owner=null for minimal feature"
-
-            # Overall validation should have passed for both features
-            validate_payload = json.loads(validate_result.output)
-            assert validate_payload["valid"] is True, "Both features should be valid"
-            assert (
-                validate_payload["features"] == 2
-            ), f"Expected 2 features, got: {validate_payload['features']}"
-            assert (
-                len(validate_payload.get("errors", [])) == 0
-            ), f"Expected no errors, got: {validate_payload.get('errors')}"
+        # Overall validation should have passed for both features
+        validate_payload = json.loads(validate_result.output)
+        assert validate_payload["valid"] is True, "Both features should be valid"
+        assert (
+            validate_payload["features"] == 2
+        ), f"Expected 2 features, got: {validate_payload['features']}"
+        assert (
+            len(validate_payload.get("errors", [])) == 0
+        ), f"Expected no errors, got: {validate_payload.get('errors')}"

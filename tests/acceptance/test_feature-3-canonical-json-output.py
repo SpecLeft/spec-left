@@ -31,7 +31,7 @@ from specleft.cli.main import cli
     feature_id="feature-3-canonical-json-output",
     scenario_id="emit-canonical-json-shape",
 )
-def test_emit_canonical_json_shape() -> None:
+def test_emit_canonical_json_shape(acceptance_workspace) -> None:
     """Emit canonical JSON shape
 
     Priority: critical
@@ -42,13 +42,11 @@ def test_emit_canonical_json_shape() -> None:
     - scenarios with id, priority, and status
     - optional metadata fields (nullable)
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a SpecLeft command is run with --format json"):
-            # Create a feature file with scenarios
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given a SpecLeft command is run with --format json"):
+        # Create a feature file with scenarios
+        feature_content = """\
 # Feature: User Authentication
 priority: high
 
@@ -68,11 +66,11 @@ priority: medium
 - When they click logout
 - Then the session is terminated
 """
-            Path("features/feature-user-authentication.md").write_text(feature_content)
+        Path("features/feature-user-authentication.md").write_text(feature_content)
 
-            # Create test file so we can verify status field
-            Path("tests").mkdir()
-            Path("tests/test_feature_user_authentication.py").write_text("""\
+        # Create test file so we can verify status field
+        Path("tests").mkdir()
+        Path("tests/test_feature_user_authentication.py").write_text("""\
 from specleft import specleft
 
 @specleft(feature_id="feature-user-authentication", scenario_id="user-logs-in-successfully")
@@ -80,65 +78,63 @@ def test_user_logs_in_successfully():
     pass
 """)
 
-        with specleft.step("When output is produced"):
-            # Use status command with --format json to get canonical output
-            result = runner.invoke(cli, ["status", "--format", "json"])
-            assert result.exit_code == 0, f"Command failed: {result.output}"
-            payload = json.loads(result.output)
+    with specleft.step("When output is produced"):
+        # Use status command with --format json to get canonical output
+        result = runner.invoke(cli, ["status", "--format", "json"])
+        assert result.exit_code == 0, f"Command failed: {result.output}"
+        payload = json.loads(result.output)
 
-        with specleft.step("Then each feature includes:"):
-            # Verify we have features in the output
-            assert "features" in payload, "Expected 'features' key in JSON output"
-            assert len(payload["features"]) >= 1, "Expected at least one feature"
+    with specleft.step("Then each feature includes:"):
+        # Verify we have features in the output
+        assert "features" in payload, "Expected 'features' key in JSON output"
+        assert len(payload["features"]) >= 1, "Expected at least one feature"
 
-            feature = payload["features"][0]
+        feature = payload["features"][0]
 
-            # Verify feature_id is present
-            assert "feature_id" in feature, "Missing 'feature_id' in feature"
-            assert feature["feature_id"] == "feature-user-authentication"
+        # Verify feature_id is present
+        assert "feature_id" in feature, "Missing 'feature_id' in feature"
+        assert feature["feature_id"] == "feature-user-authentication"
 
-            # Verify title is present
-            assert "title" in feature, "Missing 'title' in feature"
-            assert feature["title"] == "User Authentication"
+        # Verify title is present
+        assert "title" in feature, "Missing 'title' in feature"
+        assert feature["title"] == "User Authentication"
 
-            # Verify scenarios with id, priority, and status
-            assert "scenarios" in feature, "Missing 'scenarios' in feature"
-            assert len(feature["scenarios"]) >= 2, "Expected at least 2 scenarios"
+        # Verify scenarios with id, priority, and status
+        assert "scenarios" in feature, "Missing 'scenarios' in feature"
+        assert len(feature["scenarios"]) >= 2, "Expected at least 2 scenarios"
 
-            for scenario in feature["scenarios"]:
-                # Canonical uses 'id' not 'scenario_id'
-                assert "id" in scenario, f"Missing 'id' in scenario: {scenario}"
-                assert (
-                    "priority" in scenario
-                ), f"Missing 'priority' in scenario: {scenario}"
-                assert "status" in scenario, f"Missing 'status' in scenario: {scenario}"
-                assert "title" in scenario, f"Missing 'title' in scenario: {scenario}"
+        for scenario in feature["scenarios"]:
+            # Canonical uses 'id' not 'scenario_id'
+            assert "id" in scenario, f"Missing 'id' in scenario: {scenario}"
+            assert "priority" in scenario, f"Missing 'priority' in scenario: {scenario}"
+            assert "status" in scenario, f"Missing 'status' in scenario: {scenario}"
+            assert "title" in scenario, f"Missing 'title' in scenario: {scenario}"
 
-            # Verify specific scenario data
-            scenario_ids = {s["id"] for s in feature["scenarios"]}
-            assert "user-logs-in-successfully" in scenario_ids
-            assert "user-logout" in scenario_ids
+        # Verify specific scenario data
+        scenario_ids = {s["id"] for s in feature["scenarios"]}
+        assert "user-logs-in-successfully" in scenario_ids
+        assert "user-logout" in scenario_ids
 
-            # Verify optional metadata fields are present (nullable)
-            # These fields should exist even if they're null
-            optional_fields = [
-                "confidence",
-                "source",
-                "assumptions",
-                "open_questions",
-                "tags",
-                "owner",
-                "component",
-            ]
-            for field in optional_fields:
-                assert field in feature, f"Missing optional field '{field}' in feature"
+        # Verify optional metadata fields are present (nullable)
+        # These fields should exist even if they're null
+        optional_fields = [
+            "confidence",
+            "source",
+            "assumptions",
+            "open_questions",
+            "tags",
+            "owner",
+            "component",
+        ]
+        for field in optional_fields:
+            assert field in feature, f"Missing optional field '{field}' in feature"
 
 
 @specleft(
     feature_id="feature-3-canonical-json-output",
     scenario_id="scenario-ids-are-deterministic",
 )
-def test_scenario_ids_are_deterministic() -> None:
+def test_scenario_ids_are_deterministic(acceptance_workspace) -> None:
     """Scenario IDs are deterministic
 
     Priority: critical
@@ -146,14 +142,12 @@ def test_scenario_ids_are_deterministic() -> None:
     Verifies that scenario IDs are derived consistently from titles
     using slugification, and repeated runs produce identical IDs.
     """
-    runner = CliRunner()
+    runner, _workspace = acceptance_workspace
 
-    with runner.isolated_filesystem():
-        with specleft.step("Given a scenario title exists"):
-            # Create feature file with scenarios that have varied titles
-            # to test slugification behaviour
-            Path("features").mkdir()
-            feature_content = """\
+    with specleft.step("Given a scenario title exists"):
+        # Create feature file with scenarios that have varied titles
+        # to test slugification behaviour
+        feature_content = """\
 # Feature: Slugification Test
 priority: high
 
@@ -180,85 +174,81 @@ priority: low
 - When spaced
 - Then normalized
 """
-            Path("features/feature-slugification-test.md").write_text(feature_content)
+        Path("features/feature-slugification-test.md").write_text(feature_content)
 
-        with specleft.step("When JSON is emitted"):
-            # Run status command twice to verify determinism
-            result1 = runner.invoke(cli, ["status", "--format", "json"])
-            assert result1.exit_code == 0, f"First run failed: {result1.output}"
-            payload1 = json.loads(result1.output)
+    with specleft.step("When JSON is emitted"):
+        # Run status command twice to verify determinism
+        result1 = runner.invoke(cli, ["status", "--format", "json"])
+        assert result1.exit_code == 0, f"First run failed: {result1.output}"
+        payload1 = json.loads(result1.output)
 
-        with specleft.step(
-            "Then the scenario ID is derived consistently from the title"
-        ):
-            feature = payload1["features"][0]
-            scenarios = feature["scenarios"]
+    with specleft.step("Then the scenario ID is derived consistently from the title"):
+        feature = payload1["features"][0]
+        scenarios = feature["scenarios"]
 
-            # Build mapping of title to id
-            title_to_id = {s["title"]: s["id"] for s in scenarios}
+        # Build mapping of title to id
+        title_to_id = {s["title"]: s["id"] for s in scenarios}
 
-            # Verify slug derivation rules:
-            # - Lowercase
-            # - Spaces become hyphens
-            # - Special characters removed
-            # - Multiple spaces normalized
+        # Verify slug derivation rules:
+        # - Lowercase
+        # - Spaces become hyphens
+        # - Special characters removed
+        # - Multiple spaces normalized
 
-            # "User Logs In Successfully" -> "user-logs-in-successfully"
-            assert (
-                title_to_id["User Logs In Successfully"] == "user-logs-in-successfully"
-            ), f"Expected 'user-logs-in-successfully', got '{title_to_id.get('User Logs In Successfully')}'"
+        # "User Logs In Successfully" -> "user-logs-in-successfully"
+        assert (
+            title_to_id["User Logs In Successfully"] == "user-logs-in-successfully"
+        ), f"Expected 'user-logs-in-successfully', got '{title_to_id.get('User Logs In Successfully')}'"
 
-            # "Handle Edge-Case (Special Characters!)" -> slugified without special chars
-            edge_case_id = title_to_id.get("Handle Edge-Case (Special Characters!)")
-            assert edge_case_id is not None, "Edge case scenario not found"
-            # Slugify removes parentheses and special chars
-            assert "(" not in edge_case_id, f"ID should not contain '(': {edge_case_id}"
-            assert ")" not in edge_case_id, f"ID should not contain ')': {edge_case_id}"
-            assert "!" not in edge_case_id, f"ID should not contain '!': {edge_case_id}"
-            assert (
-                edge_case_id == edge_case_id.lower()
-            ), f"ID should be lowercase: {edge_case_id}"
+        # "Handle Edge-Case (Special Characters!)" -> slugified without special chars
+        edge_case_id = title_to_id.get("Handle Edge-Case (Special Characters!)")
+        assert edge_case_id is not None, "Edge case scenario not found"
+        # Slugify removes parentheses and special chars
+        assert "(" not in edge_case_id, f"ID should not contain '(': {edge_case_id}"
+        assert ")" not in edge_case_id, f"ID should not contain ')': {edge_case_id}"
+        assert "!" not in edge_case_id, f"ID should not contain '!': {edge_case_id}"
+        assert (
+            edge_case_id == edge_case_id.lower()
+        ), f"ID should be lowercase: {edge_case_id}"
 
-            # "Multi   Word   Spaces" -> should normalize multiple spaces
-            multi_space_id = title_to_id.get("Multi   Word   Spaces")
-            assert multi_space_id is not None, "Multi-space scenario not found"
-            assert (
-                "--" not in multi_space_id
-            ), f"ID should not have double hyphens: {multi_space_id}"
+        # "Multi   Word   Spaces" -> should normalize multiple spaces
+        multi_space_id = title_to_id.get("Multi   Word   Spaces")
+        assert multi_space_id is not None, "Multi-space scenario not found"
+        assert (
+            "--" not in multi_space_id
+        ), f"ID should not have double hyphens: {multi_space_id}"
 
-        with specleft.step("And repeated runs produce identical IDs"):
-            # Run the same command again
-            result2 = runner.invoke(cli, ["status", "--format", "json"])
-            assert result2.exit_code == 0, f"Second run failed: {result2.output}"
-            payload2 = json.loads(result2.output)
+    with specleft.step("And repeated runs produce identical IDs"):
+        # Run the same command again
+        result2 = runner.invoke(cli, ["status", "--format", "json"])
+        assert result2.exit_code == 0, f"Second run failed: {result2.output}"
+        payload2 = json.loads(result2.output)
 
-            # Extract scenario IDs from both runs
-            ids1 = sorted(s["id"] for s in payload1["features"][0]["scenarios"])
-            ids2 = sorted(s["id"] for s in payload2["features"][0]["scenarios"])
+        # Extract scenario IDs from both runs
+        ids1 = sorted(s["id"] for s in payload1["features"][0]["scenarios"])
+        ids2 = sorted(s["id"] for s in payload2["features"][0]["scenarios"])
 
-            # Verify identical IDs
-            assert ids1 == ids2, (
-                f"Scenario IDs not deterministic!\n"
-                f"First run:  {ids1}\n"
-                f"Second run: {ids2}"
-            )
+        # Verify identical IDs
+        assert ids1 == ids2, (
+            f"Scenario IDs not deterministic!\n"
+            f"First run:  {ids1}\n"
+            f"Second run: {ids2}"
+        )
 
-            # Also verify using features list command for cross-command consistency
-            list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
-            assert (
-                list_result.exit_code == 0
-            ), f"features list failed: {list_result.output}"
-            list_payload = json.loads(list_result.output)
+        # Also verify using features list command for cross-command consistency
+        list_result = runner.invoke(cli, ["features", "list", "--format", "json"])
+        assert list_result.exit_code == 0, f"features list failed: {list_result.output}"
+        list_payload = json.loads(list_result.output)
 
-            # Extract IDs from features list
-            list_ids = sorted(
-                s["id"]
-                for f in list_payload.get("features", [])
-                for s in f.get("scenarios", [])
-            )
+        # Extract IDs from features list
+        list_ids = sorted(
+            s["id"]
+            for f in list_payload.get("features", [])
+            for s in f.get("scenarios", [])
+        )
 
-            assert ids1 == list_ids, (
-                f"Scenario IDs differ between commands!\n"
-                f"status:        {ids1}\n"
-                f"features list: {list_ids}"
-            )
+        assert ids1 == list_ids, (
+            f"Scenario IDs differ between commands!\n"
+            f"status:        {ids1}\n"
+            f"features list: {list_ids}"
+        )
