@@ -30,7 +30,11 @@ def _extract_feature_titles(prd_content: str) -> tuple[list[str], list[str]]:
     warnings: list[str] = []
     lines = [line.rstrip() for line in prd_content.splitlines()]
     h1_titles = [line[2:].strip() for line in lines if line.startswith("# ")]
-    h2_titles = [line[3:].strip() for line in lines if line.startswith("## ")]
+    h2_titles = [
+        line[3:].strip()
+        for line in lines
+        if line.startswith("## ") and "feature" in line.lower()
+    ]
 
     if h2_titles:
         return [title for title in h2_titles if title], warnings
@@ -43,23 +47,145 @@ def _extract_feature_titles(prd_content: str) -> tuple[list[str], list[str]]:
     return [], warnings
 
 
-def _feature_template(title: str) -> str:
-    return (
-        textwrap.dedent(
-            f"""
-            # Feature: {title}
+def _extract_prd_scenarios(
+    prd_content: str,
+    *,
+    require_step_keywords: bool = True,
+) -> tuple[dict[str, list[dict[str, object]]], list[dict[str, object]], list[str]]:
+    warnings: list[str] = []
+    scenarios_by_feature: dict[str, list[dict[str, object]]] = {}
+    orphan_scenarios: list[dict[str, object]] = []
 
-            ## Scenarios
+    def parse_heading(line: str) -> tuple[int, str] | None:
+        stripped = line.lstrip()
+        if not stripped.startswith("#"):
+            return None
+        level = len(stripped) - len(stripped.lstrip("#"))
+        if level < 2 or level > 4:
+            return None
+        if len(stripped) <= level or stripped[level] != " ":
+            return None
+        return level, stripped[level + 1 :].strip()
 
-            ### Scenario: Example
-            priority: medium
+    def is_feature_heading(level: int, text: str) -> bool:
+        return level == 2 and text.lower().startswith("feature")
 
-            - Given a precondition
-            - When an action occurs
-            - Then the expected result
-            """
+    def extract_scenario_title(text: str) -> str | None:
+        lower = text.lower()
+        marker = "scenario:"
+        if marker not in lower:
+            return None
+        start = lower.find(marker) + len(marker)
+        title = text[start:].strip()
+        return title or "Scenario"
+
+    def is_step_line(text: str) -> bool:
+        lowered = text.lower()
+        return lowered.startswith(("given ", "when ", "then ", "and ", "but "))
+
+    def normalize_step(text: str) -> str | None:
+        stripped = text.strip()
+        if not stripped:
+            return None
+        if require_step_keywords and not is_step_line(stripped):
+            return None
+        return stripped
+
+    def extract_steps(lines: list[str]) -> list[str]:
+        steps: list[str] = []
+        for raw in lines:
+            stripped = raw.strip()
+            if not stripped:
+                continue
+            if stripped.startswith(('-', '*', '•')):
+                candidate = stripped[1:].strip()
+            else:
+                candidate = stripped
+            normalized = normalize_step(candidate)
+            if normalized:
+                steps.append(normalized)
+        return steps
+
+    lines = prd_content.splitlines()
+    current_feature: str | None = None
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        heading = parse_heading(line)
+        if heading:
+            level, text = heading
+            if is_feature_heading(level, text):
+                current_feature = text
+            scenario_title = extract_scenario_title(text)
+            if scenario_title:
+                block_lines: list[str] = []
+                index += 1
+                while index < len(lines):
+                    next_heading = parse_heading(lines[index])
+                    if next_heading:
+                        break
+                    block_lines.append(lines[index])
+                    index += 1
+                steps = extract_steps(block_lines)
+                scenario = {"title": scenario_title, "steps": steps}
+                if current_feature is None:
+                    warnings.append(
+                        f" Scenario found without feature - '{scenario_title}'. "
+                    )
+                    orphan_scenarios.append(scenario)
+                else:
+                    scenarios_by_feature.setdefault(current_feature, []).append(scenario)
+                continue
+        index += 1
+
+    return scenarios_by_feature, orphan_scenarios, warnings
+
+
+def _render_scenarios(scenarios: list[dict[str, object]]) -> str:
+    blocks: list[str] = []
+    for scenario in scenarios:
+        title = str(scenario.get("title", "Scenario"))
+        steps = scenario.get("steps") or []
+        step_lines = [f"- {step}" for step in steps]
+        block = "\n".join(
+            [
+                f"### Scenario: {title}",
+                *step_lines,
+            ]
         ).strip()
-        + "\n"
+        blocks.append(block)
+    return "\n\n".join(blocks).strip()
+
+
+def _feature_template(
+    title: str,
+    scenarios: list[dict[str, object]] | None = None,
+) -> str:
+    scenario_block = None
+    if scenarios:
+        rendered = _render_scenarios(scenarios)
+        if rendered:
+            scenario_block = rendered
+    default_block = textwrap.dedent(
+        """
+        ### Scenario: Example
+        priority: medium
+
+        - Given a precondition
+        - When an action occurs
+        - Then the expected result
+        """
+    ).strip()
+    block = scenario_block or default_block
+    return "\n".join(
+        [
+            f"# Feature: {title}",
+            "",
+            "## Scenarios",
+            "",
+            block,
+            "",
+        ]
     )
 
 
@@ -81,6 +207,7 @@ def _apply_plan(
     *,
     features_dir: Path,
     dry_run: bool,
+    scenarios_by_feature: dict[str, list[dict[str, object]]] | None = None,
 ) -> tuple[list[Path], list[Path]]:
     created: list[Path] = []
     skipped: list[Path] = []
@@ -93,7 +220,10 @@ def _apply_plan(
             created.append(path)
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_feature_template(title))
+        scenarios = None
+        if scenarios_by_feature:
+            scenarios = scenarios_by_feature.get(title)
+        path.write_text(_feature_template(title, scenarios=scenarios))
         created.append(path)
     return created, skipped
 
@@ -106,6 +236,7 @@ def _build_plan_payload(
     created: list[Path],
     skipped: list[Path],
     warnings: list[str],
+    orphan_scenarios: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "timestamp": datetime.now().isoformat(),
@@ -117,6 +248,7 @@ def _build_plan_payload(
         "suggested_locations": [str(path) for path in SUGGESTED_PRD_LOCATIONS],
         "skipped": [str(path) for path in skipped],
     }
+    payload["oprhan_scenarios"] = orphan_scenarios or []
     if dry_run:
         payload["would_create"] = [str(path) for path in created]
     else:
@@ -203,6 +335,12 @@ def plan(prd_path: str, format_type: str, dry_run: bool) -> None:
 
     titles, title_warnings = _extract_feature_titles(prd_content)
     warnings.extend(title_warnings)
+    (
+        scenarios_by_feature,
+        orphan_scenarios,
+        scenario_warnings,
+    ) = _extract_prd_scenarios(prd_content, require_step_keywords=True)
+    warnings.extend(scenario_warnings)
     features_dir = Path("features")
 
     if not titles:
@@ -212,6 +350,7 @@ def plan(prd_path: str, format_type: str, dry_run: bool) -> None:
         titles,
         features_dir=features_dir,
         dry_run=dry_run,
+        scenarios_by_feature=scenarios_by_feature,
     )
     feature_count = len(titles)
 
@@ -223,6 +362,7 @@ def plan(prd_path: str, format_type: str, dry_run: bool) -> None:
             created=created,
             skipped=skipped,
             warnings=warnings,
+            orphan_scenarios=orphan_scenarios,
         )
         click.echo(json.dumps(payload, indent=2))
         return
