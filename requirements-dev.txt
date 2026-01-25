@@ -1,5 +1,5 @@
 # Development dependencies (pinned for reproducible installs)
-pytest-cov==4.0.0
+pytest-cov==7.0.0
 pytest-subtests==0.11.0
 black==24.4.2
 ruff==0.5.6
