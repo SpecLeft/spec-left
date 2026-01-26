@@ -2,10 +2,13 @@ policy_id: enforce-v1
 policy_version: '1.0'
 policy_type: enforce
 license:
-  license_id: lic_2a834c35f9e03b53
+  license_id: lic_c3c535d973b5e4a1
   licensed_to: SpecLeft/specleft
-  issued_at: '2026-01-24'
-  expires_at: '2027-01-24'
+  issued_at: '2026-01-26'
+  expires_at: '2027-01-26'
+  evaluation:
+    starts_at: '2026-01-26'
+    ends_at: '2026-02-25'
 rules:
   priorities:
     critical:
@@ -18,4 +21,4 @@ rules:
 signature:
   algorithm: ed25519
   key_id: specleft-dev-2026
-  value: SzG1ID/gZjNb53isS4doh4AJ5AIz0FTFArhNPCoJPdWJuT8s1BQC1e4eKxGWIgYD4jOej3OyHDOeEZlFw4LABA==
+  value: 9vLEy37haVrrOXeuI8hOyfy+l38Q/Si0aCXUYUlMSgX4k5SsxdXW7Nhm7IOCSgljeJ3ZKrhREpJym8KEepI0CQ==
