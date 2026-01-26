@@ -246,33 +246,26 @@ specleft status --format json
 
 ## License
 
-SpecLeft is **source-available** and licensed under the **PolyForm Shield License 1.0.0**.
-
-This means:
+SpecLeft is **source-available** and licensed under the **PolyForm Shield License 1.0.0** with additional restrictions.
 
 ### ✅ You are free to
 - Use SpecLeft for personal, educational, or internal company use
 - Run it locally, in CI/CD, or as part of automated workflows
 - Fork the repository and modify it for your own needs
 - Use SpecLeft with AI agents to build and test software products
-- Distribute modified versions for non-competing purposes
 
-### 🚫 You may **not**
-- Sell SpecLeft itself as a product or service
-- Offer a hosted, managed, or commercial version of SpecLeft
-- Build a product that competes with SpecLeft or any product built using SpecLeft
-- Sell licensed artefacts that SpecLeft would process or enforce
-- Repackage SpecLeft as part of a paid developer tool, platform, or SaaS offering
-- Sell, license, or commercially distribute SpecLeft Artefacts.
-
-“SpecLeft Artefacts” means any rules, policies, enforcement configurations, scenario/spec bundles, or other machine-readable or structured content that is primarily intended to be used with, interpreted by, enforced by, or executed via the Software (including its CLI, plugins, or validators), whether distributed alone or as part of a bundle.
+### 🚫 You may not
+- Sell SpecLeft itself
+- Offer SpecLeft as a hosted or managed service
+- Build or sell a product that directly competes with SpecLeft
 
 ### 🤝 Why this license exists
-The goal of this license is to:
-- Keep SpecLeft free and useful for the community
-- Enable AI-assisted software development and experimentation
-- Protect the long-term sustainability of the project
-- Prevent direct commercial competition with SpecLeft
+This license is intended to:
+- Keep SpecLeft free for personal, educational, and internal use
+- Enable AI-assisted software development
+- Protect the project from direct commercial competition
+
+These restrictions are defined by the PolyForm Shield License.
 
 ### 📄 Full license text
 See the full license in the [`LICENSE`](./LICENSE) file or at:
@@ -280,4 +273,5 @@ https://polyformproject.org/licenses/shield/1.0.0/
 
 ### Quick rule of thumb
 > If you’re using SpecLeft **to build software**, you’re fine.
+
 > If you’re using SpecLeft **to sell SpecLeft**, you need permission.

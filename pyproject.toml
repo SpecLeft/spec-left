@@ -23,7 +23,6 @@ classifiers = [
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Quality Assurance",
     "Environment :: Console",
-    "Framework :: Pytest",
     "Development Status :: 4 - Beta",
 ]
 dependencies = [
