@@ -38,7 +38,7 @@ dependencies = [
 ]
 keywords=[
     "ai",
-    "agents", 
+    "agents",
     "testing",
     "bdd",
     "behaviour",

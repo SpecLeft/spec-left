@@ -6,9 +6,9 @@ priority: medium
 ### Scenario: CI failure explains intent mismatch
 - Given enforcement fails in CI
 - When output is printed
-- Then the message explains: 
-    - declared intent, 
-    - implementation state 
+- Then the message explains:
+    - declared intent,
+    - implementation state
     - clear remediation options
 - And no marketing or pricing language is included
 

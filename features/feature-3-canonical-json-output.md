@@ -6,9 +6,9 @@ priority: high
 ### Scenario: Emit canonical JSON shape
 - Given a SpecLeft command is run with `--format json`
 - When output is produced
-- Then each feature includes: 
-    - feature_id, 
-    - title, 
+- Then each feature includes:
+    - feature_id,
+    - title,
     - scnearios with id, priority and status
     - optional metadata fields (nullable)
 
