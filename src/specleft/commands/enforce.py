@@ -27,18 +27,7 @@ def load_policy(path: str) -> SignedPolicy | None:
         SignedPolicy if valid, None if loading failed
     """
     try:
-
-        class _NoDatesSafeLoader(yaml.SafeLoader):
-            pass
-
-        for ch, resolvers in list(_NoDatesSafeLoader.yaml_implicit_resolvers.items()):
-            _NoDatesSafeLoader.yaml_implicit_resolvers[ch] = [
-                (tag, regexp)
-                for tag, regexp in resolvers
-                if tag != "tag:yaml.org,2002:timestamp"
-            ]
-
-        content = yaml.load(Path(path).read_text(), Loader=_NoDatesSafeLoader)
+        content = yaml.safe_load(Path(path).read_text())
         return SignedPolicy.model_validate(content)
     except FileNotFoundError:
         click.echo(f"Error: Policy file not found: {path}", err=True)

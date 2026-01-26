@@ -24,6 +24,7 @@ from specleft.schema import FeatureSpec, SpecsConfig, StorySpec
 from specleft.utils.structure import detect_features_layout, warn_if_nested_structure
 from specleft.utils.text import to_snake_case
 from specleft.validator import load_specs_directory
+from jinja2 import select_autoescape
 
 
 def _load_skeleton_template() -> Template:
@@ -32,6 +33,7 @@ def _load_skeleton_template() -> Template:
         loader=FileSystemLoader(templates_dir),
         trim_blocks=True,
         lstrip_blocks=True,
+        autoescape=select_autoescape(enabled_extensions=("html", "xml")),
     )
     env.filters["snake_case"] = to_snake_case
     env.filters["repr"] = repr

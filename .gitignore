@@ -228,3 +228,4 @@ features/non-goals.md
 features/open-questions.md
 features/overview.md
 .licenses/policy.yml
+bandit-report.json
