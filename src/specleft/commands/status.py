@@ -313,9 +313,9 @@ def print_status_table(
             )
         )
         click.secho(
-            f"{feature_file} ({feature_summary.coverage_percent}%)",
+            f"Feature File: {feature_file} ({feature_summary.coverage_percent}%)",
             fg="cyan",
-            bold=True
+            bold=True,
         )
 
         # Show scenarios directly (flattened from stories)

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from specleft_signing.schema import SignedPolicy
+    from specleft.specleft_signing.schema import SignedPolicy
 
 
 @dataclass
@@ -81,7 +81,7 @@ def evaluate_policy(
     Returns:
         Dictionary with enforcement results
     """
-    from specleft_signing.schema import PolicyType
+    from specleft.specleft_signing.schema import PolicyType
 
     from specleft.commands.status import build_status_entries
     from specleft.commands.types import ScenarioStatusEntry

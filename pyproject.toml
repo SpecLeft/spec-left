@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A planning-first CLI for AI coding agents to externalize intent before writing code, with optional CI enforcement for Python projects."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Polyform Shield 1.0.0"}
+license = "Polyform Shield 1.0.0"
 license-files = ["LICENSE"]
 authors = [
     {name = "SpecLeft", email = "richard@specleft.dev"},
@@ -33,8 +33,6 @@ dependencies = [
     "python-slugify>=8.0.0",
     "pyyaml>=6.0.0",
     "cryptography>=41.0.0",
-    "specleft-signing @ git+ssh://git@github.com/SpecLeft/specleft-signing.git@v0.2.0",
-
 ]
 keywords=[
     "ai",
@@ -58,6 +56,7 @@ keywords=[
 Homepage = "https://github.com/SpecLeft/spec-left"
 Issues = "https://github.com/SpecLeft/spec-left/issues"
 Documentation = "https://github.com/SpecLeft/spec-left/tree/main/docs"
+Repository = "https://github.com/SpecLeft/spec-left"
 
 [project.optional-dependencies]
 dev = [
@@ -76,11 +75,6 @@ spec = "specleft.cli.main:cli"
 
 [project.entry-points.pytest11]
 specleft = "specleft.pytest_plugin"
-
-[project.urls]
-Homepage = "https://github.com/SpecLeft/spec-left"
-Documentation = "https://github.com/SpecLeft/spec-left"
-Repository = "https://github.com/SpecLeft/spec-left"
 
 [tool.setuptools.packages.find]
 where = ["src"]

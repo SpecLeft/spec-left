@@ -11,8 +11,8 @@ from typing import Any, cast
 
 import click
 import yaml
-from specleft_signing.schema import PolicyType, SignedPolicy
-from specleft_signing.verify import VerifyFailure, VerifyResult, verify_policy
+from specleft.specleft_signing.schema import PolicyType, SignedPolicy
+from specleft.specleft_signing.verify import VerifyFailure, VerifyResult, verify_policy
 
 from specleft.enforcement.engine import evaluate_policy
 from specleft.license.repo_identity import detect_repo_identity

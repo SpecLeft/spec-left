@@ -13,8 +13,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-from specleft_signing.canonical import canonical_payload
-from specleft_signing.verify import TRUSTED_PUBLIC_KEYS
+from specleft.specleft_signing.canonical import canonical_payload
+from specleft.specleft_signing.verify import TRUSTED_PUBLIC_KEYS
 
 # Test keypair - ONLY for testing, never use in production
 # Generated once and stored here for deterministic tests

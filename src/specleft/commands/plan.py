@@ -30,11 +30,7 @@ def _extract_feature_titles(prd_content: str) -> tuple[list[str], list[str]]:
     warnings: list[str] = []
     lines = [line.rstrip() for line in prd_content.splitlines()]
     h1_titles = [line[2:].strip() for line in lines if line.startswith("# ")]
-    h2_titles = [
-        line[3:].strip()
-        for line in lines
-        if line.startswith("## ") and "feature" in line.lower()
-    ]
+    h2_titles = [line[3:].strip() for line in lines if line.startswith("## ")]
 
     if h2_titles:
         return [title for title in h2_titles if title], warnings
