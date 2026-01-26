@@ -87,7 +87,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: security-reports
@@ -151,7 +151,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
@@ -196,7 +196,7 @@ jobs:
         run: twine check dist/*
 
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-packages
           path: dist/
