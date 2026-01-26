@@ -1,264 +1,268 @@
-
 # Getting Started with SpecLeft
 
-This guide walks you through the **30-minute Wow Path** — the fastest way to understand what SpecLeft does, why it exists, and whether it earns a place in your workflow.
+This guide walks you through the **15-minute path** — the fastest way to understand what SpecLeft does and whether it fits your workflow.
 
-By the end of this guide, you should see that SpecLeft:
-> - does not break your existing tests
-> - makes missing behaviour visible
-> - reduces overhead instead of adding it
+By the end of this guide, you will:
+> - Generate feature specs from a PRD
+> - See how intent maps to test skeletons
+> - Understand how SpecLeft makes missing behaviour visible
 
-No prior setup. No commitment. No surprises.
+No configuration required. No surprises.
 
 ---
 
-## Install and run your existing tests
-
-Install SpecLeft:
+## Install SpecLeft
 
 ```bash
 pip install specleft
 ```
 
-Run your test suite as usual:
+Verify installation:
 
 ```bash
-pytest
+specleft doctor
 ```
 
-**What happens**
-- Tests run exactly as before
-- No new failures
-- No files created
-- No configuration required
-
-SpecLeft is passive by default.
-
-This step exists to prove one thing: **nothing breaks**.
+SpecLeft is passive by default — it won't modify anything until you ask.
 
 ---
 
-## 1. See what SpecLeft can observe
+## 1. Write a PRD
 
-Ask SpecLeft to inspect your repository:
-
-```bash
-specleft features stats
-```
-
-Example output:
-
-```
-Test Coverage Stats
-
-Target Directories:
-  Features Directory: features/
-  Tests Directory: tests/
-
-Pytest Tests:
-  Total pytest tests discovered: 20
-  Tests with @specleft: 0
-
-Specifications:
-  No specs found.
-
-Coverage:
-  Cannot calculate coverage without specs.
-```
-
-**What this tells you**
-- SpecLeft understands your existing tests
-- You have not opted into anything yet
-- No enforcement, no judgement
-
-At this point, SpecLeft is just observing.
-
----
-
-## 2. Write a single feature spec
-
-Create one Markdown scenario file and place in `features/auth/login-success.md` directory:
+Create a `prd.md` file in your repository root:
 
 ```markdown
----
-scenario_id: login-success
-priority: high
-tags: [auth, smoke]
----
+# My Project
 
-# Scenario: Successful login
+## Feature: User Authentication
 
-## Steps
+Users need to log in securely.
+
+### Scenario: Successful login
 - Given user has valid credentials
-- When user logs in
-- Then user is authenticated
+- When user submits login form
+- Then user is authenticated and redirected to dashboard
+
+### Scenario: Invalid credentials
+- Given user has invalid credentials
+- When user submits login form
+- Then an error message is displayed
+
+## Feature: Password Reset
+
+Users need to recover forgotten passwords.
+
+### Scenario: Request password reset
+- Given user has a registered email
+- When user requests password reset
+- Then a reset link is sent to their email
 ```
 
-Notes:
-- This is plain Markdown
-- No special DSL
-- No runtime interpretation
-
-You are describing the scenario's **intent**, not implementation.
+**Notes:**
+- `## Feature:` headings define feature boundaries
+- `### Scenario:` headings define individual behaviours
+- Steps use Given/When/Then format
+- This is plain Markdown — no special syntax
 
 ---
 
-## 3: Generate a skeleton test (explicit confirmation)
+## 2. Generate feature specs
 
 Run:
+
+```bash
+specleft plan --dry-run
+```
+
+SpecLeft parses your PRD and shows what it would create:
+
+```
+Planning feature specs...
+Dry run: no files will be created.
+Features planned: 2
+Would create:
+  - features/feature-user-authentication.md
+  - features/feature-password-reset.md
+```
+
+When ready, run without `--dry-run`:
+
+```bash
+specleft plan
+```
+
+SpecLeft creates one file per feature under `features/`:
+
+```
+features/
+├── feature-user-authentication.md
+└── feature-password-reset.md
+```
+
+Each file contains the scenarios extracted from your PRD.
+
+---
+
+## 3. Inspect a feature file
+
+Open `features/feature-user-authentication.md`:
+
+```markdown
+# Feature: User Authentication
+
+## Scenarios
+
+### Scenario: Successful login
+- Given user has valid credentials
+- When user submits login form
+- Then user is authenticated and redirected to dashboard
+
+### Scenario: Invalid credentials
+- Given user has invalid credentials
+- When user submits login form
+- Then an error message is displayed
+```
+
+This is your **intent specification** — what the system should do, independent of implementation.
+
+---
+
+## 4. Generate skeleton tests
+
+Run:
+
+```bash
+specleft test skeleton --dry-run
+```
+
+SpecLeft shows the test files it would generate:
+
+```
+Will generate: tests/test_feature_user_authentication.py
+
+- Feature: feature-user-authentication
+- Scenarios: 2
+- Default status: SKIPPED (not implemented)
+```
+
+When ready:
 
 ```bash
 specleft test skeleton
 ```
 
-SpecLeft shows you **exactly** what it plans to generate:
-
-```bash
-Will generate: tests/auth/test_login.py
-
-- Feature: auth
-- Scenario: login-success
-- Steps: 3
-- Default status: SKIPPED (not implemented)
-
-Preview:
-
-@specleft(feature_id="auth", scenario_id="login-success", skip=True)
-def test_login_success():
-    with specleft.step("Given user has valid credentials"):
-        pass  # TODO - Skeleton test step.
-
-    with specleft.step("When user logs in"):
-        pass  # TODO - Skeleton test step.
-
-    with specleft.step("Then user is authenticated"):
-        pass  # TODO - Skeleton test step.
-```
-
-You are then prompted:
-
-```
-Confirm skeleton test creation? [y/N]
-```
-
-⚠️ **Nothing is written unless you explicitly confirm.**
-
----
-
-## 4. Run tests safely
-
-Run pytest again:
-
-```bash
-pytest
-```
-
-The generated skeleton test is **skipped**, not failed:
-
-```bash
-SKIPPED: Scenario 'login-success' defined in spec but not implemented
-```
-
-**Why this matters**
-- Coverage is visible
-- CI stays green
-- No pressure to implement immediately
-
-Missing behaviour is explicit, not hidden.
-
----
-
-## 5. Implement behaviour and see alignment
-
-Fill in the test logic:
+The generated test includes the `@specleft` decorator linking it to the spec:
 
 ```python
-@specleft(feature_id="auth", scenario_id="login-success")
-def test_login_success(auth_service):
-    with specleft.step("Given user has valid credentials"):
-        username, password = "admin", "admin123"
-
-    with specleft.step("When user logs in"):
-        result = auth_service.login(username, password)
-
-    with specleft.step("Then user is authenticated"):
-        assert result is True
-```
-
-Run tests:
-
-```bash
-pytest
-```
-
-Now generate a report:
-
-```bash
-specleft test report --open-browser
-```
-
-**What you see**
-- Scenario listed by name
-- Steps in execution order
-- Clear pass/fail per step
-- Priority and tags visible
-
----
-
-## 6. Next steps
-
-- Add more scenarios
-- Reuse step functions
-- Filter tests by feature or priority
-- Integrate into CI
-
-#### Full alignment with your tests now awaits.
-
-Any enhancements or bug requests — please raise an [Issue](https://github.com/SpecLeft/spec-left/issues)
-
----
-
-# For AI Agents: Automated Setup
-
-If you're an AI agent setting up SpecLeft:
-```bash
-# Full automated workflow
-pip install specleft
-specleft doctor --format json  # Verify installation
-specleft contract --format json  # Review agent contract
-specleft features stats --format json  # Check project fit
-specleft init --dry-run --format json  # Preview initialization plan
-
-# Create example specs (or extract from requirements)
-# ... create feature/story/scenario .md files ...
-
-specleft features validate --format json  # Validate specs
-specleft test skeleton --dry-run --format json  # Preview skeleton plan
-specleft test skeleton  # Generate skeletons
-specleft next --limit 3 --format json  # Get next tests to implement
-
-# Implement each test (remove skip=True, add test logic)
-# ... implementation loop ...
-
-specleft status --format json  # Check progress
-```
-
-**Programmatic Example:**
-```python
-import subprocess, json
-
-# Get next test to implement
-result = subprocess.run(
-    ["specleft", "next", "--limit", "1", "--format", "json"],
-    capture_output=True, text=True
+@specleft(
+    feature_id="feature-user-authentication",
+    scenario_id="successful-login",
+    skip=True
 )
-next_test = json.loads(result.stdout)["tests"][0]
+def test_successful_login():
+    with specleft.step("Given user has valid credentials"):
+        pass  # TODO: implement
 
-# Implement test (your logic here)
-implement_test(next_test["test_file"], next_test["scenario_id"])
+    with specleft.step("When user submits login form"):
+        pass  # TODO: implement
 
-# Verify
-subprocess.run(["pytest", next_test["test_file"]])
+    with specleft.step("Then user is authenticated and redirected to dashboard"):
+        pass  # TODO: implement
 ```
 
-See [AI Agents Guide](docs/ai-agents-main.md) for complete workflows.
+---
+
+## 5. Run tests safely
+
+Run pytest:
+
+```bash
+pytest
+```
+
+Skeleton tests are **skipped**, not failed:
+
+```
+SKIPPED: Scenario 'successful-login' not yet implemented
+```
+
+**Why this matters:**
+- Missing behaviour is visible, not hidden
+- CI stays green
+- No pressure to implement everything immediately
+
+---
+
+## 6. Implement and track progress
+
+Fill in the test logic and remove `skip=True`:
+
+```python
+@specleft(
+    feature_id="feature-user-authentication",
+    scenario_id="successful-login",
+)
+def test_successful_login(auth_service):
+    with specleft.step("Given user has valid credentials"):
+        user = {"username": "alice", "password": "secret123"}
+
+    with specleft.step("When user submits login form"):
+        result = auth_service.login(user["username"], user["password"])
+
+    with specleft.step("Then user is authenticated and redirected to dashboard"):
+        assert result.authenticated is True
+        assert result.redirect_url == "/dashboard"
+```
+
+Check implementation status:
+
+```bash
+specleft status
+```
+
+```
+Feature: feature-user-authentication
+  ✓ successful-login (implemented)
+  ○ invalid-credentials (skipped)
+
+Feature: feature-password-reset
+  ○ request-password-reset (skipped)
+
+Coverage: 1/3 scenarios implemented (33%)
+```
+
+---
+
+## Optional: Quick demo with `specleft init`
+
+If you don't have a PRD yet, you can see an example feature file:
+
+```bash
+specleft init
+```
+
+This creates `features/example-feature.md` with a sample structure — useful for understanding the format before writing your own specs.
+
+---
+
+## Next steps
+
+- Add priorities to scenarios (`priority: critical`, `high`, `medium`, `low`)
+- Use `specleft next` to find the next scenario to implement
+- Set up CI enforcement with `specleft enforce`
+- See [AI_AGENTS.md](AI_AGENTS.md) for AI coding agent workflows
+
+---
+
+## For AI Agents
+
+SpecLeft provides machine-verifiable guarantees for autonomous execution:
+
+```bash
+specleft contract --format json  # Verify safety guarantees
+specleft doctor --format json    # Check installation health
+```
+
+All commands support `--format json` for programmatic use.
+
+See [AI_AGENTS.md](AI_AGENTS.md) for complete integration guidance.
