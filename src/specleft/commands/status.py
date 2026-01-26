@@ -314,7 +314,7 @@ def print_status_table(
         click.secho(
             f"{feature_file} ({feature_summary.coverage_percent}%)",
             fg="cyan",
-            bold=True
+            bold=True,
         )
 
         # Show scenarios directly (flattened from stories)
@@ -328,7 +328,7 @@ def print_status_table(
     click.secho(
         f"Overall: {summary.implemented}/{summary.total_scenarios} scenarios implemented ({summary.coverage_percent}%)",
         fg="magenta",
-        bold=True
+        bold=True,
     )
     if separator:
         click.echo(separator[0])

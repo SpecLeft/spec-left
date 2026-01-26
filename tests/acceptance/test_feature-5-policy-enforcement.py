@@ -108,9 +108,12 @@ def test_enforce_critical_and_high_priority_scenarios(
         # Test file is already created by fixture with only medium priority implemented
         pass
 
-    with specleft.step("When specleft enforce <policy.yml> is executed"), patch(
-        "specleft.commands.enforce.detect_repo_identity",
-        return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+    with (
+        specleft.step("When specleft enforce <policy.yml> is executed"),
+        patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ),
     ):
         result = runner.invoke(
             cli,
@@ -175,9 +178,12 @@ def test_pass_enforcement_when_intent_is_satisfied(
         )
         write_policy_file(Path("."), policy_data)
 
-    with specleft.step("When enforcement is executed"), patch(
-        "specleft.commands.enforce.detect_repo_identity",
-        return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+    with (
+        specleft.step("When enforcement is executed"),
+        patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ),
     ):
         result = runner.invoke(
             cli,
@@ -234,9 +240,12 @@ def test_reject_invalid_or_unsigned_policies(
         # Write the tampered policy
         write_policy_file(Path("."), policy_data, filename="policy-invalid.yml")
 
-    with specleft.step("When enforcement is executed"), patch(
-        "specleft.commands.enforce.detect_repo_identity",
-        return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+    with (
+        specleft.step("When enforcement is executed"),
+        patch(
+            "specleft.commands.enforce.detect_repo_identity",
+            return_value=RepoIdentity(owner="test-owner", name="test-repo"),
+        ),
     ):
         result = runner.invoke(
             cli,

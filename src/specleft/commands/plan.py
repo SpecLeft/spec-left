@@ -103,7 +103,7 @@ def _extract_prd_scenarios(
             stripped = raw.strip()
             if not stripped:
                 continue
-            if stripped.startswith(('-', '*', '•')):
+            if stripped.startswith(("-", "*", "•")):
                 candidate = stripped[1:].strip()
             else:
                 candidate = stripped
@@ -160,7 +160,9 @@ def _extract_prd_scenarios(
                     )
                     orphan_scenarios.append(scenario)
                 else:
-                    scenarios_by_feature.setdefault(current_feature, []).append(scenario)
+                    scenarios_by_feature.setdefault(current_feature, []).append(
+                        scenario
+                    )
                 continue
         if current_feature is not None and current_feature not in feature_priorities:
             priority_value = extract_priority(line)
@@ -265,7 +267,9 @@ def _apply_plan(
         priority = None
         if feature_priorities:
             priority = feature_priorities.get(title)
-        path.write_text(_feature_template(title, scenarios=scenarios, priority=priority))
+        path.write_text(
+            _feature_template(title, scenarios=scenarios, priority=priority)
+        )
         created.append(path)
     return created, skipped
 
