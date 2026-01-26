@@ -9,6 +9,7 @@ description = "A planning-first CLI for AI coding agents to externalize intent b
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Polyform Shield 1.0.0"}
+license-files = ["LICENSE"]
 authors = [
     {name = "SpecLeft", email = "richard@specleft.dev"},
 ]
@@ -53,6 +54,10 @@ keywords=[
     "plan",
     "buffer"
 ]
+[project.urls]
+Homepage = "https://github.com/SpecLeft/spec-left"
+Issues = "https://github.com/SpecLeft/spec-left/issues"
+Documentation = "https://github.com/SpecLeft/spec-left/tree/main/docs"
 
 [project.optional-dependencies]
 dev = [
