@@ -11,7 +11,7 @@ version = "0.1.0"
 description = "A planning-first CLI for AI coding agents to externalize intent before writing code, with optional CI enforcement for Python projects."
 readme = "README.md"
 requires-python = ">=3.10"
-license = "Polyform Shield 1.0.0"
+license = {text = 'Polyform Shield 1.0.0', file = "LICENSE"}
 license-files = ["LICENSE"]
 authors = [
     {name = "SpecLeft", email = "richard@specleft.dev"},
