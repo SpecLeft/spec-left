@@ -204,14 +204,16 @@ def _feature_template(
         rendered = _render_scenarios(scenarios)
         if rendered:
             scenario_block = rendered
-    default_block = textwrap.dedent("""
+    default_block = textwrap.dedent(
+        """
         ### Scenario: Example
         priority: medium
 
         - Given a precondition
         - When an action occurs
         - Then the expected result
-        """).strip()
+        """
+    ).strip()
     block = scenario_block or default_block
     return "\n".join(
         [

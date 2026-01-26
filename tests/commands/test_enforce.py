@@ -73,13 +73,15 @@ class TestEnforceCommand:
             # Create implemented test
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text("""
+            (tests_dir / "test_login.py").write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
 
             # Create policy
             policy_data = create_core_policy_data(

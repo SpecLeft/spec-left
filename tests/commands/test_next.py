@@ -100,13 +100,15 @@ class TestNextCommand:
             )
             tests_dir = Path("tests") / "auth"
             tests_dir.mkdir(parents=True)
-            (tests_dir / "test_login.py").write_text("""
+            (tests_dir / "test_login.py").write_text(
+                """
 from specleft import specleft
 
 @specleft(feature_id="auth", scenario_id="login-success")
 def test_login_success():
     pass
-""")
+"""
+            )
             result = runner.invoke(cli, ["next"])
             assert result.exit_code == 0
             assert "All scenarios are implemented" in result.output
